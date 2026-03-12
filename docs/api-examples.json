@@ -1,0 +1,225 @@
+{
+  "register": {
+    "request": {
+      "method": "POST",
+      "url": "/api/v1/auth/register",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "email": "admin@acme.com",
+        "password": "SecurePass123!",
+        "firstName": "John",
+        "lastName": "Admin",
+        "phone": "+1234567890",
+        "tenantId": "acme-corp"
+      }
+    },
+    "response": {
+      "success": true,
+      "message": "User registered successfully",
+      "data": {
+        "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+        "refreshToken": "eyJhbGciOiJIUzI1NiJ9...",
+        "tokenType": "Bearer",
+        "userId": "550e8400-e29b-41d4-a716-446655440000",
+        "email": "admin@acme.com",
+        "tenantId": "acme-corp",
+        "roles": ["USER"]
+      },
+      "timestamp": "2026-03-04T10:15:30"
+    }
+  },
+  "login": {
+    "request": {
+      "method": "POST",
+      "url": "/api/v1/auth/login",
+      "headers": {
+        "Content-Type": "application/json"
+      },
+      "body": {
+        "email": "admin@acme.com",
+        "password": "SecurePass123!",
+        "tenantId": "acme-corp"
+      }
+    },
+    "response": {
+      "success": true,
+      "message": "Login successful",
+      "data": {
+        "accessToken": "eyJhbGciOiJIUzI1NiJ9...",
+        "refreshToken": "eyJhbGciOiJIUzI1NiJ9...",
+        "tokenType": "Bearer",
+        "userId": "550e8400-e29b-41d4-a716-446655440000",
+        "email": "admin@acme.com",
+        "tenantId": "acme-corp",
+        "roles": ["USER", "ADMIN"]
+      },
+      "timestamp": "2026-03-04T10:15:30"
+    }
+  },
+  "createLead": {
+    "request": {
+      "method": "POST",
+      "url": "/api/v1/leads",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiJ9...",
+        "X-Tenant-ID": "acme-corp"
+      },
+      "body": {
+        "firstName": "Jane",
+        "lastName": "Smith",
+        "email": "jane.smith@prospect.com",
+        "phone": "+1987654321",
+        "company": "Prospect Inc",
+        "title": "VP Engineering",
+        "source": "WEB",
+        "description": "Interested in enterprise plan"
+      }
+    },
+    "response": {
+      "success": true,
+      "message": "Lead created successfully",
+      "data": {
+        "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "firstName": "Jane",
+        "lastName": "Smith",
+        "email": "jane.smith@prospect.com",
+        "phone": "+1987654321",
+        "company": "Prospect Inc",
+        "title": "VP Engineering",
+        "status": "NEW",
+        "source": "WEB",
+        "leadScore": 0,
+        "assignedTo": null,
+        "description": "Interested in enterprise plan",
+        "converted": false,
+        "tenantId": "acme-corp",
+        "createdAt": "2026-03-04T10:20:00",
+        "updatedAt": "2026-03-04T10:20:00",
+        "createdBy": "admin@acme.com"
+      },
+      "timestamp": "2026-03-04T10:20:00"
+    }
+  },
+  "getLeads": {
+    "request": {
+      "method": "GET",
+      "url": "/api/v1/leads?page=0&size=20&sortBy=createdAt&sortDir=desc",
+      "headers": {
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiJ9...",
+        "X-Tenant-ID": "acme-corp"
+      }
+    },
+    "response": {
+      "success": true,
+      "message": "Operation successful",
+      "data": {
+        "content": [
+          {
+            "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+            "firstName": "Jane",
+            "lastName": "Smith",
+            "email": "jane.smith@prospect.com",
+            "status": "NEW",
+            "leadScore": 0,
+            "company": "Prospect Inc"
+          }
+        ],
+        "pageNumber": 0,
+        "pageSize": 20,
+        "totalElements": 1,
+        "totalPages": 1,
+        "last": true,
+        "first": true
+      },
+      "timestamp": "2026-03-04T10:25:00"
+    }
+  },
+  "convertLead": {
+    "request": {
+      "method": "POST",
+      "url": "/api/v1/leads/a1b2c3d4-e5f6-7890-abcd-ef1234567890/convert",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiJ9..."
+      },
+      "body": {
+        "opportunityName": "Prospect Inc - Enterprise Plan",
+        "amount": 50000.00,
+        "stage": "QUALIFICATION"
+      }
+    },
+    "response": {
+      "success": true,
+      "message": "Lead converted successfully",
+      "data": {
+        "id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "firstName": "Jane",
+        "lastName": "Smith",
+        "status": "CONVERTED",
+        "converted": true
+      },
+      "timestamp": "2026-03-04T10:30:00"
+    }
+  },
+  "aiLeadScore": {
+    "request": {
+      "method": "POST",
+      "url": "/api/v1/ai/lead-score",
+      "headers": {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiJ9..."
+      },
+      "body": {
+        "leadId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "leadData": {
+          "company": "Prospect Inc",
+          "title": "VP Engineering",
+          "source": "WEB",
+          "industry": "Technology"
+        }
+      }
+    },
+    "response": {
+      "success": true,
+      "message": "Operation successful",
+      "data": {
+        "leadId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "score": 82,
+        "factors": [
+          "Senior executive title (VP) indicates decision-making authority",
+          "Technology industry has high conversion rate",
+          "Web leads show active interest"
+        ],
+        "confidence": 0.85
+      },
+      "timestamp": "2026-03-04T10:35:00"
+    }
+  },
+  "errorResponse": {
+    "notFound": {
+      "success": false,
+      "message": "Lead not found with id: 'invalid-id'",
+      "error": {
+        "code": "RESOURCE_NOT_FOUND",
+        "message": "Lead not found with id: 'invalid-id'"
+      },
+      "timestamp": "2026-03-04T10:40:00"
+    },
+    "validationError": {
+      "success": false,
+      "message": "Validation failed",
+      "error": {
+        "code": "VALIDATION_ERROR",
+        "message": "Validation failed",
+        "details": {
+          "firstName": "First name is required",
+          "lastName": "Last name is required"
+        }
+      },
+      "timestamp": "2026-03-04T10:40:00"
+    }
+  }
+}

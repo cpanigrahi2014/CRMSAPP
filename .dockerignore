@@ -1,0 +1,29 @@
+# Build output
+**/target/
+**/*.jar
+
+# IDE files
+**/.idea/
+**/*.iml
+**/.vscode/
+**/.settings/
+
+# OS files
+**/.DS_Store
+**/Thumbs.db
+
+# Docker
+**/docker-compose.override.yml
+
+# Git
+**/.git/
+**/.gitignore
+
+# Docs
+**/README.md
+**/Prompt.md
+**/*.md
+
+# Logs
+**/*.log
+**/logs/

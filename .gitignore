@@ -1,0 +1,46 @@
+# IDE
+.idea/
+*.iml
+.vscode/
+.settings/
+.classpath
+.project
+
+# Build
+target/
+*.jar
+*.war
+*.class
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+*.env.local
+
+# Docker
+docker-compose.override.yml
+
+# Node
+node_modules/
+dist/
+.vite/
+package-lock.json
+
+# Secrets
+token.txt
+response.json
+
+# Python
+__pycache__/
+*.pyc
+.pytest_cache/
+allure-results/

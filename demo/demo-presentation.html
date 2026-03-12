@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CRMS Platform — Product Demo</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0f172a;--surface:#1e293b;--accent:#3b82f6;--accent2:#8b5cf6;
+    --green:#22c55e;--amber:#f59e0b;--red:#ef4444;--cyan:#06b6d4;
+    --text:#f1f5f9;--muted:#94a3b8;--border:#334155;
+  }
+  html{font-size:16px}
+  body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,-apple-system,sans-serif;overflow:hidden;height:100vh}
+
+  /* ── Slide container ── */
+  .deck{position:relative;width:100vw;height:100vh}
+  .slide{
+    position:absolute;inset:0;display:flex;flex-direction:column;
+    justify-content:center;align-items:center;padding:4rem 6rem;
+    opacity:0;transform:translateY(30px);pointer-events:none;
+    transition:opacity .6s ease,transform .6s ease;
+  }
+  .slide.active{opacity:1;transform:translateY(0);pointer-events:auto}
+
+  /* ── Typography ── */
+  h1{font-size:3.4rem;font-weight:800;letter-spacing:-.02em;margin-bottom:.6rem;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+  h2{font-size:2.4rem;font-weight:700;margin-bottom:1.2rem;color:var(--text)}
+  h3{font-size:1.4rem;font-weight:600;margin-bottom:.8rem;color:var(--accent)}
+  p,.desc{font-size:1.15rem;color:var(--muted);line-height:1.7;max-width:52rem;text-align:center}
+  .tag{display:inline-block;padding:.25rem .75rem;border-radius:9999px;font-size:.8rem;font-weight:600;margin:.2rem}
+  .tag-blue{background:rgba(59,130,246,.15);color:var(--accent)}
+  .tag-purple{background:rgba(139,92,246,.15);color:var(--accent2)}
+  .tag-green{background:rgba(34,197,94,.15);color:var(--green)}
+  .tag-amber{background:rgba(245,158,11,.15);color:var(--amber)}
+
+  /* ── Cards ── */
+  .card-grid{display:grid;gap:1.4rem;margin-top:1.5rem;width:100%;max-width:64rem}
+  .card-grid.cols-2{grid-template-columns:repeat(2,1fr)}
+  .card-grid.cols-3{grid-template-columns:repeat(3,1fr)}
+  .card-grid.cols-4{grid-template-columns:repeat(4,1fr)}
+  .card{
+    background:var(--surface);border:1px solid var(--border);border-radius:1rem;
+    padding:1.5rem;text-align:left;transition:border-color .3s,transform .3s;
+  }
+  .card:hover{border-color:var(--accent);transform:translateY(-2px)}
+  .card h4{font-size:1.1rem;margin-bottom:.4rem;color:var(--text)}
+  .card p{font-size:.9rem;text-align:left;color:var(--muted);line-height:1.5}
+  .card .metric{font-size:2rem;font-weight:800;color:var(--accent);margin-bottom:.3rem}
+  .card .metric.green{color:var(--green)}
+  .card .metric.amber{color:var(--amber)}
+  .card .metric.purple{color:var(--accent2)}
+  .card .icon{font-size:2rem;margin-bottom:.5rem}
+
+  /* ── Pipeline table ── */
+  .pipeline-table{width:100%;max-width:58rem;margin-top:1rem;border-collapse:separate;border-spacing:0 .5rem}
+  .pipeline-table th{text-align:left;font-size:.8rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:.3rem .8rem}
+  .pipeline-table td{background:var(--surface);padding:.75rem .8rem;font-size:.95rem}
+  .pipeline-table tr td:first-child{border-radius:.5rem 0 0 .5rem}
+  .pipeline-table tr td:last-child{border-radius:0 .5rem .5rem 0}
+  .stage{padding:.2rem .6rem;border-radius:9999px;font-size:.75rem;font-weight:600}
+  .stage-won{background:rgba(34,197,94,.15);color:var(--green)}
+  .stage-lost{background:rgba(239,68,68,.15);color:var(--red)}
+  .stage-neg{background:rgba(245,158,11,.15);color:var(--amber)}
+  .stage-prop{background:rgba(59,130,246,.15);color:var(--accent)}
+  .stage-qual{background:rgba(139,92,246,.15);color:var(--accent2)}
+  .stage-other{background:rgba(6,182,212,.15);color:var(--cyan)}
+
+  /* ── Architecture ── */
+  .arch-row{display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;margin:.6rem 0}
+  .arch-box{
+    background:var(--surface);border:1px solid var(--border);border-radius:.6rem;
+    padding:.6rem 1rem;font-size:.85rem;font-weight:600;color:var(--text);min-width:7rem;text-align:center
+  }
+  .arch-box.highlight{border-color:var(--accent);color:var(--accent)}
+  .arch-arrow{color:var(--muted);font-size:1.4rem;display:flex;align-items:center;justify-content:center;margin:.3rem 0}
+
+  /* ── Navigation ── */
+  .nav{
+    position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);
+    display:flex;align-items:center;gap:1rem;z-index:100;
+    background:var(--surface);border:1px solid var(--border);border-radius:999px;
+    padding:.5rem 1.2rem;
+  }
+  .nav button{
+    background:none;border:none;color:var(--muted);font-size:1.4rem;cursor:pointer;
+    width:2.2rem;height:2.2rem;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    transition:background .2s,color .2s;
+  }
+  .nav button:hover{background:var(--accent);color:#fff}
+  .nav .counter{font-size:.85rem;color:var(--muted);min-width:4rem;text-align:center}
+
+  .dots{display:flex;gap:.4rem}
+  .dot{width:.5rem;height:.5rem;border-radius:50%;background:var(--border);transition:background .3s,width .3s}
+  .dot.active{background:var(--accent);width:1.2rem;border-radius:.25rem}
+
+  /* ── Autoplay bar ── */
+  .auto-bar{
+    position:fixed;top:0;left:0;height:3px;background:linear-gradient(90deg,var(--accent),var(--accent2));
+    width:0;transition:width linear;z-index:200;
+  }
+
+  /* ── Animations ── */
+  @keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+  .slide.active .anim{animation:fadeUp .5s ease both}
+  .slide.active .anim-d1{animation-delay:.1s}
+  .slide.active .anim-d2{animation-delay:.2s}
+  .slide.active .anim-d3{animation-delay:.3s}
+  .slide.active .anim-d4{animation-delay:.4s}
+  .slide.active .anim-d5{animation-delay:.5s}
+  .slide.active .anim-d6{animation-delay:.6s}
+
+  .subtitle{font-size:1.3rem;color:var(--muted);margin-bottom:2rem}
+
+  /* ── Responsive ── */
+  @media(max-width:900px){
+    .slide{padding:2rem}
+    h1{font-size:2.2rem}h2{font-size:1.6rem}
+    .card-grid.cols-3,.card-grid.cols-4{grid-template-columns:repeat(2,1fr)}
+  }
+</style>
+</head>
+<body>
+
+<div class="auto-bar" id="autoBar"></div>
+
+<div class="deck" id="deck">
+
+  <!-- ===== SLIDE 0: Title ===== -->
+  <div class="slide active" data-duration="8">
+    <h1 class="anim">CRMS Platform</h1>
+    <p class="subtitle anim anim-d1">Enterprise CRM &middot; Microservices &middot; AI-Powered</p>
+    <p class="anim anim-d2">A production-ready, multi-tenant CRM platform built with Java 21, Spring Boot 3, React 18, and AI integration — covering the full sales lifecycle from lead capture to deal closure.</p>
+    <div style="margin-top:2rem" class="anim anim-d3">
+      <span class="tag tag-blue">14 Microservices</span>
+      <span class="tag tag-purple">AI-Powered</span>
+      <span class="tag tag-green">Real-Time</span>
+      <span class="tag tag-amber">Multi-Tenant</span>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 1: Tech Stack ===== -->
+  <div class="slide" data-duration="10">
+    <h2 class="anim">Technology Stack</h2>
+    <div class="card-grid cols-4 anim anim-d1">
+      <div class="card"><div class="icon">☕</div><h4>Java 21</h4><p>Spring Boot 3.2.3 with virtual threads</p></div>
+      <div class="card"><div class="icon">⚛️</div><h4>React 18</h4><p>TypeScript, Redux, Vite</p></div>
+      <div class="card"><div class="icon">🐘</div><h4>PostgreSQL 16</h4><p>JPA + Hibernate + Flyway</p></div>
+      <div class="card"><div class="icon">📨</div><h4>Apache Kafka</h4><p>Real-time event streaming</p></div>
+      <div class="card"><div class="icon">⚡</div><h4>Redis 7</h4><p>Caching &amp; session store</p></div>
+      <div class="card"><div class="icon">🔒</div><h4>JWT + RBAC</h4><p>HMAC-SHA512 security</p></div>
+      <div class="card"><div class="icon">🐳</div><h4>Docker</h4><p>Full containerized deployment</p></div>
+      <div class="card"><div class="icon">🤖</div><h4>AI / LLM</h4><p>Lead scoring, predictions, drafts</p></div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 2: Architecture ===== -->
+  <div class="slide" data-duration="12">
+    <h2 class="anim">Microservices Architecture</h2>
+    <p class="anim anim-d1" style="margin-bottom:1.5rem">14 independently deployable services communicating via Kafka events</p>
+    <div class="anim anim-d2">
+      <div class="arch-row">
+        <div class="arch-box highlight">React Frontend :3000</div>
+      </div>
+      <div class="arch-arrow">▼</div>
+      <div class="arch-row">
+        <div class="arch-box">Auth :8081</div>
+        <div class="arch-box">Lead :8082</div>
+        <div class="arch-box">Account :8083</div>
+        <div class="arch-box">Contact :8084</div>
+        <div class="arch-box">Opportunity :8085</div>
+        <div class="arch-box">Activity :8086</div>
+      </div>
+      <div class="arch-row">
+        <div class="arch-box">Notification :8087</div>
+        <div class="arch-box">Workflow :8088</div>
+        <div class="arch-box">AI :8089</div>
+        <div class="arch-box">Email :8090</div>
+        <div class="arch-box">Integration :8091</div>
+      </div>
+      <div class="arch-arrow">▼</div>
+      <div class="arch-row">
+        <div class="arch-box highlight">Kafka</div>
+        <div class="arch-box highlight">PostgreSQL</div>
+        <div class="arch-box highlight">Redis</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 3: Dashboard ===== -->
+  <div class="slide" data-duration="10">
+    <h2 class="anim">📊 Dashboard — Real-Time Overview</h2>
+    <div class="card-grid cols-4 anim anim-d1">
+      <div class="card"><div class="metric">$4.6M</div><h4>Total Pipeline</h4><p>12 active deals</p></div>
+      <div class="card"><div class="metric green">$440K</div><h4>Closed Won</h4><p>2 deals closed this quarter</p></div>
+      <div class="card"><div class="metric amber">15</div><h4>Active Leads</h4><p>From 7 different sources</p></div>
+      <div class="card"><div class="metric purple">25</div><h4>Activities</h4><p>Meetings, tasks, calls, emails</p></div>
+    </div>
+    <p class="anim anim-d2" style="margin-top:1.5rem">Live metrics powered by Server-Sent Events and Kafka event streaming — no batch refreshes, no stale data.</p>
+  </div>
+
+  <!-- ===== SLIDE 4: Accounts & Contacts ===== -->
+  <div class="slide" data-duration="10">
+    <h2 class="anim">🏢 Accounts &amp; Contacts</h2>
+    <div class="card-grid cols-2 anim anim-d1">
+      <div class="card">
+        <h3>10 Accounts</h3>
+        <h4>Enterprise</h4>
+        <p>TechVista Solutions ($45M) · GlobalRetail Inc ($120M) · FinEdge Capital ($75M) · GreenEnergy Dynamics ($200M)</p>
+        <h4 style="margin-top:.8rem">Mid-Market &amp; SMB</h4>
+        <p>MedHealth Partners · EduPath Learning · CloudNine SaaS · Atlas Logistics · StartupHub Ventures</p>
+      </div>
+      <div class="card">
+        <h3>20 Contacts</h3>
+        <h4>Full Contact Intelligence</h4>
+        <p>Decision makers, influencers, and champions across all accounts. Each record includes title, department, LinkedIn, lifecycle stage, and communication consent tracking (email/SMS/phone).</p>
+        <h4 style="margin-top:.8rem">360° View</h4>
+        <p>Contacts linked to accounts with hierarchical relationships and territory assignment.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 5: Leads ===== -->
+  <div class="slide" data-duration="10">
+    <h2 class="anim">🎯 Lead Management</h2>
+    <p class="anim anim-d1" style="margin-bottom:1.2rem">15 leads from diverse sources — automatically scored and ready for conversion</p>
+    <div class="card-grid cols-3 anim anim-d2">
+      <div class="card">
+        <div class="icon">🌐</div>
+        <h4>Multi-Source Capture</h4>
+        <p>Web forms, trade shows, referrals, phone, email, social media — all funneled into a unified pipeline.</p>
+      </div>
+      <div class="card">
+        <div class="icon">📈</div>
+        <h4>AI Lead Scoring</h4>
+        <p>Engagement signals and firmographic data drive automated lead scoring to prioritize the hottest prospects.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🔄</div>
+        <h4>One-Click Conversion</h4>
+        <p>Convert qualified leads to opportunities with full context preservation — no data lost in the handoff.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 6: Pipeline ===== -->
+  <div class="slide" data-duration="14">
+    <h2 class="anim">💰 Opportunity Pipeline — $4.6M</h2>
+    <table class="pipeline-table anim anim-d1">
+      <thead><tr><th>Deal</th><th>Amount</th><th>Stage</th></tr></thead>
+      <tbody>
+        <tr><td>GreenEnergy Fleet Management</td><td><strong>$1,200,000</strong></td><td><span class="stage stage-neg">Negotiation</span></td></tr>
+        <tr><td>GlobalRetail Omnichannel Suite</td><td><strong>$850,000</strong></td><td><span class="stage stage-prop">Proposal</span></td></tr>
+        <tr><td>FinEdge Risk Analytics Module</td><td><strong>$520,000</strong></td><td><span class="stage stage-qual">Qualification</span></td></tr>
+        <tr><td>TechVista Platform License</td><td><strong>$450,000</strong></td><td><span class="stage stage-neg">Negotiation</span></td></tr>
+        <tr><td>Precision Mfg ERP Connect</td><td><strong>$380,000</strong></td><td><span class="stage stage-prop">Proposal</span></td></tr>
+        <tr><td>Atlas Logistics Route Optimization</td><td><strong>$290,000</strong></td><td><span class="stage stage-won">Closed Won ✓</span></td></tr>
+        <tr><td>MedHealth HIPAA Compliance</td><td><strong>$280,000</strong></td><td><span class="stage stage-other">Needs Analysis</span></td></tr>
+        <tr><td>CloudNine Partnership Integration</td><td><strong>$150,000</strong></td><td><span class="stage stage-won">Closed Won ✓</span></td></tr>
+        <tr><td>StartupHub Portfolio CRM</td><td><strong>$95,000</strong></td><td><span class="stage stage-qual">Qualification</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ===== SLIDE 7: Activities & Workflow ===== -->
+  <div class="slide" data-duration="10">
+    <h2 class="anim">⚡ Activities &amp; Workflow Automation</h2>
+    <div class="card-grid cols-2 anim anim-d1">
+      <div class="card">
+        <h3>25 Activities Tracked</h3>
+        <div style="margin:.8rem 0">
+          <span class="tag tag-blue">Meetings</span>
+          <span class="tag tag-purple">Tasks</span>
+          <span class="tag tag-green">Calls</span>
+          <span class="tag tag-amber">Emails</span>
+        </div>
+        <p>Discovery calls, demos, contract negotiations, pipeline reviews, proposals, competitor analysis, ROI calculators, executive briefings — all linked to accounts, opportunities, and contacts.</p>
+        <p style="margin-top:.5rem">Priority levels: <strong>Urgent</strong>, High, Medium, Low</p>
+      </div>
+      <div class="card">
+        <h3>5 Automation Rules</h3>
+        <p><strong>1.</strong> Auto-assign new web leads to reps</p>
+        <p><strong>2.</strong> Large deal alerts ($500K+) to managers</p>
+        <p><strong>3.</strong> Stale opportunity follow-up reminders</p>
+        <p><strong>4.</strong> Welcome emails for new contacts</p>
+        <p><strong>5.</strong> Overdue activity escalation</p>
+        <p style="margin-top:.5rem;color:var(--cyan)">Powered by Kafka — real-time, zero delays</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 8: AI Features ===== -->
+  <div class="slide" data-duration="12">
+    <h2 class="anim">🤖 AI-Powered Intelligence</h2>
+    <p class="anim anim-d1" style="margin-bottom:1.2rem">LLM integration with Resilience4j circuit breakers for enterprise reliability</p>
+    <div class="card-grid cols-3 anim anim-d2">
+      <div class="card"><div class="icon">🎯</div><h4>Lead Scoring</h4><p>AI analyzes engagement patterns and firmographics to predict conversion likelihood.</p></div>
+      <div class="card"><div class="icon">🧭</div><h4>Next Best Action</h4><p>Contextual recommendations: send proposal, schedule demo, follow up on stale deal.</p></div>
+      <div class="card"><div class="icon">✉️</div><h4>Email Drafting</h4><p>Generate personalized outreach emails using deal context and contact history.</p></div>
+      <div class="card"><div class="icon">💬</div><h4>Sentiment Analysis</h4><p>Analyze customer communications to gauge satisfaction and engagement levels.</p></div>
+      <div class="card"><div class="icon">📊</div><h4>Win Probability</h4><p>Real-time prediction of deal closure probability based on pipeline signals.</p></div>
+      <div class="card"><div class="icon">⚠️</div><h4>Churn Prediction</h4><p>Flag at-risk accounts before they disengage, enabling proactive retention.</p></div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 9: Email & Communications ===== -->
+  <div class="slide" data-duration="8">
+    <h2 class="anim">✉️ Email Templates &amp; Communications</h2>
+    <div class="card-grid cols-3 anim anim-d1">
+      <div class="card"><div class="icon">👋</div><h4>Welcome New Client</h4><p>Onboarding email with account setup details and next steps.</p></div>
+      <div class="card"><div class="icon">🤝</div><h4>Meeting Follow-Up</h4><p>Post-meeting summary with action items and timeline.</p></div>
+      <div class="card"><div class="icon">📝</div><h4>Proposal Follow-Up</h4><p>Check-in after proposal delivery with competitive differentiators.</p></div>
+      <div class="card"><div class="icon">📅</div><h4>Quarterly Review</h4><p>Business review invitation with KPIs and agenda preview.</p></div>
+      <div class="card"><div class="icon">🎉</div><h4>Deal Won Celebration</h4><p>Internal announcement with deal details and team recognition.</p></div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 10: Security & Multi-Tenancy ===== -->
+  <div class="slide" data-duration="10">
+    <h2 class="anim">🔒 Enterprise Security &amp; Multi-Tenancy</h2>
+    <div class="card-grid cols-2 anim anim-d1">
+      <div class="card">
+        <h3>Security</h3>
+        <p><strong>JWT Authentication</strong> — HMAC-SHA512 signed tokens</p>
+        <p><strong>RBAC</strong> — Admin, Manager, User roles with method-level security</p>
+        <p><strong>CORS</strong> — Configurable cross-origin policies</p>
+        <p><strong>Rate Limiting</strong> — API abuse prevention</p>
+        <p><strong>Audit Logging</strong> — Full trail of all data changes</p>
+      </div>
+      <div class="card">
+        <h3>Multi-Tenancy</h3>
+        <p><strong>Strategy</strong> — Shared database with tenant_id column isolation</p>
+        <p><strong>JWT Tenant Context</strong> — Tenant ID embedded in every token</p>
+        <p><strong>Hibernate Filters</strong> — Automatic query scoping per tenant</p>
+        <p><strong>Interceptor Filter</strong> — Extracts tenant context from every request</p>
+        <p><strong>Zero Cross-Tenant Leakage</strong> — Data isolation guaranteed at ORM level</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 11: Reports ===== -->
+  <div class="slide" data-duration="8">
+    <h2 class="anim">📈 Reports &amp; Analytics</h2>
+    <div class="card-grid cols-4 anim anim-d1">
+      <div class="card">
+        <div class="icon">💰</div>
+        <h4>Revenue Analytics</h4>
+        <p>Pipeline breakdown by stage, owner, and time period.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🏆</div>
+        <h4>Win/Loss Analysis</h4>
+        <p>Win rates, loss reasons, and competitive intelligence.</p>
+      </div>
+      <div class="card">
+        <div class="icon">🔮</div>
+        <h4>Sales Forecasting</h4>
+        <p>Commit, Best Case, and Pipeline category projections.</p>
+      </div>
+      <div class="card">
+        <div class="icon">👥</div>
+        <h4>Team Performance</h4>
+        <p>Activity metrics, conversion rates, and rep rankings.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== SLIDE 12: Closing ===== -->
+  <div class="slide" data-duration="10">
+    <h1 class="anim">CRMS Platform</h1>
+    <p class="subtitle anim anim-d1">Full Sales Lifecycle — Lead to Close</p>
+    <div class="card-grid cols-3 anim anim-d2" style="max-width:48rem">
+      <div class="card" style="text-align:center">
+        <div class="metric">14</div>
+        <p>Microservices</p>
+      </div>
+      <div class="card" style="text-align:center">
+        <div class="metric green">$4.6M</div>
+        <p>Demo Pipeline</p>
+      </div>
+      <div class="card" style="text-align:center">
+        <div class="metric purple">AI</div>
+        <p>Powered Intelligence</p>
+      </div>
+    </div>
+    <p class="anim anim-d3" style="margin-top:2rem">Java 21 &middot; Spring Boot 3 &middot; React 18 &middot; PostgreSQL &middot; Kafka &middot; Redis &middot; Docker</p>
+    <p class="anim anim-d4" style="margin-top:1rem;color:var(--accent);font-weight:600;font-size:1.2rem">Thank you for watching</p>
+  </div>
+
+</div>
+
+<!-- ── Navigation ── -->
+<nav class="nav">
+  <button id="prevBtn" title="Previous slide">◀</button>
+  <div class="dots" id="dots"></div>
+  <button id="nextBtn" title="Next slide">▶</button>
+  <span class="counter" id="counter"></span>
+  <button id="playBtn" title="Toggle autoplay">⏵</button>
+</nav>
+
+<script>
+(function(){
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const dots   = document.getElementById('dots');
+  const counter= document.getElementById('counter');
+  const bar    = document.getElementById('autoBar');
+  let current  = 0;
+  let autoplay = false;
+  let timer    = null;
+  let elapsed  = 0;
+  let interval = null;
+
+  // Build dots
+  slides.forEach((_,i)=>{
+    const d = document.createElement('span');
+    d.className = 'dot' + (i===0?' active':'');
+    d.addEventListener('click',()=>goTo(i));
+    dots.appendChild(d);
+  });
+
+  function goTo(n){
+    if(n<0||n>=slides.length) return;
+    slides[current].classList.remove('active');
+    dots.children[current].classList.remove('active');
+    current = n;
+    slides[current].classList.add('active');
+    dots.children[current].classList.add('active');
+    counter.textContent = `${current+1} / ${slides.length}`;
+    resetBar();
+  }
+
+  function next(){ goTo(current < slides.length-1 ? current+1 : 0); }
+  function prev(){ goTo(current > 0 ? current-1 : slides.length-1); }
+
+  document.getElementById('prevBtn').addEventListener('click', prev);
+  document.getElementById('nextBtn').addEventListener('click', next);
+  document.getElementById('playBtn').addEventListener('click', toggleAutoplay);
+
+  // Keyboard
+  document.addEventListener('keydown', e=>{
+    if(e.key==='ArrowRight'||e.key===' ') next();
+    else if(e.key==='ArrowLeft') prev();
+    else if(e.key==='p'||e.key==='P') toggleAutoplay();
+  });
+
+  function getDuration(){ return (parseFloat(slides[current].dataset.duration)||8)*1000; }
+
+  function resetBar(){
+    elapsed = 0;
+    bar.style.transition = 'none';
+    bar.style.width = '0%';
+    if(autoplay) startBar();
+  }
+
+  function startBar(){
+    clearInterval(interval);
+    const dur = getDuration();
+    const step = 50;
+    interval = setInterval(()=>{
+      elapsed += step;
+      bar.style.transition = 'width 50ms linear';
+      bar.style.width = Math.min(100, (elapsed/dur)*100) + '%';
+      if(elapsed >= dur){ clearInterval(interval); next(); }
+    }, step);
+  }
+
+  function toggleAutoplay(){
+    autoplay = !autoplay;
+    document.getElementById('playBtn').textContent = autoplay ? '⏸' : '⏵';
+    if(autoplay){ resetBar(); }
+    else { clearInterval(interval); bar.style.width='0%'; }
+  }
+
+  // Init
+  counter.textContent = `1 / ${slides.length}`;
+})();
+</script>
+</body>
+</html>

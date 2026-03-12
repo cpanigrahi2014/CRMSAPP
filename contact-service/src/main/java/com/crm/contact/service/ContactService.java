@@ -1,0 +1,519 @@
+package com.crm.contact.service;
+
+import com.crm.common.dto.PagedResponse;
+import com.crm.common.event.EventPublisher;
+import com.crm.common.exception.ResourceNotFoundException;
+import com.crm.common.security.TenantContext;
+import com.crm.contact.dto.*;
+import com.crm.contact.entity.*;
+import com.crm.contact.mapper.ContactMapper;
+import com.crm.contact.repository.*;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
+
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class ContactService {
+
+    private final ContactRepository contactRepository;
+    private final ContactTagRepository tagRepository;
+    private final ContactCommunicationRepository communicationRepository;
+    private final ContactActivityRepository activityRepository;
+    private final ContactMapper contactMapper;
+    private final EventPublisher eventPublisher;
+
+    // ═══════════════════════════════════════════════════════════
+    // Feature 1: Contact creation
+    // ═══════════════════════════════════════════════════════════
+    @Transactional
+    @CacheEvict(value = "contacts", allEntries = true)
+    public ContactResponse createContact(CreateContactRequest request, String userId) {
+        String tenantId = TenantContext.getTenantId();
+        log.info("Creating contact for tenant: {}", tenantId);
+
+        Contact contact = contactMapper.toEntity(request);
+        contact.setTenantId(tenantId);
+
+        // Handle consent defaults
+        if (request.getEmailOptIn() != null) contact.setEmailOptIn(request.getEmailOptIn());
+        if (request.getSmsOptIn() != null) contact.setSmsOptIn(request.getSmsOptIn());
+        if (request.getPhoneOptIn() != null) contact.setPhoneOptIn(request.getPhoneOptIn());
+        if (request.getDoNotCall() != null) contact.setDoNotCall(request.getDoNotCall());
+        if (request.getConsentSource() != null) {
+            contact.setConsentSource(request.getConsentSource());
+            contact.setConsentDate(LocalDateTime.now());
+        }
+
+        Contact savedContact = contactRepository.save(contact);
+        log.info("Contact created: {} for tenant: {}", savedContact.getId(), tenantId);
+
+        // Record activity
+        recordActivity(savedContact.getId(), tenantId, "CREATED",
+                "Contact created: " + savedContact.getFirstName() + " " + savedContact.getLastName(), userId);
+
+        eventPublisher.publish("contact-events", tenantId, userId, "Contact",
+                savedContact.getId().toString(), "CONTACT_CREATED", contactMapper.toResponse(savedContact));
+
+        return contactMapper.toResponse(savedContact);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Feature 1 + 2: Contact update (includes account linking)
+    // ═══════════════════════════════════════════════════════════
+    @Transactional
+    @CacheEvict(value = "contacts", allEntries = true)
+    public ContactResponse updateContact(UUID contactId, UpdateContactRequest request, String userId) {
+        String tenantId = TenantContext.getTenantId();
+        log.info("Updating contact: {} for tenant: {}", contactId, tenantId);
+
+        Contact contact = contactRepository.findByIdAndTenantIdAndDeletedFalse(contactId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Contact", "id", contactId));
+
+        // Core fields
+        if (request.getFirstName() != null) contact.setFirstName(request.getFirstName());
+        if (request.getLastName() != null) contact.setLastName(request.getLastName());
+        if (request.getEmail() != null) contact.setEmail(request.getEmail());
+        if (request.getPhone() != null) contact.setPhone(request.getPhone());
+        if (request.getMobilePhone() != null) contact.setMobilePhone(request.getMobilePhone());
+        if (request.getTitle() != null) contact.setTitle(request.getTitle());
+        if (request.getDepartment() != null) contact.setDepartment(request.getDepartment());
+        if (request.getAccountId() != null) contact.setAccountId(request.getAccountId());
+        if (request.getMailingAddress() != null) contact.setMailingAddress(request.getMailingAddress());
+        if (request.getDescription() != null) contact.setDescription(request.getDescription());
+        if (request.getOwnerId() != null) contact.setOwnerId(request.getOwnerId());
+
+        // Social profiles (Feature 4)
+        if (request.getLinkedinUrl() != null) contact.setLinkedinUrl(request.getLinkedinUrl());
+        if (request.getTwitterUrl() != null) contact.setTwitterUrl(request.getTwitterUrl());
+        if (request.getFacebookUrl() != null) contact.setFacebookUrl(request.getFacebookUrl());
+        if (request.getOtherSocialUrl() != null) contact.setOtherSocialUrl(request.getOtherSocialUrl());
+
+        // Segmentation (Feature 5)
+        if (request.getLeadSource() != null) contact.setLeadSource(request.getLeadSource());
+        if (request.getLifecycleStage() != null) contact.setLifecycleStage(request.getLifecycleStage());
+        if (request.getSegment() != null) contact.setSegment(request.getSegment());
+
+        // Consent (Feature 6)
+        if (request.getEmailOptIn() != null) contact.setEmailOptIn(request.getEmailOptIn());
+        if (request.getSmsOptIn() != null) contact.setSmsOptIn(request.getSmsOptIn());
+        if (request.getPhoneOptIn() != null) contact.setPhoneOptIn(request.getPhoneOptIn());
+        if (request.getDoNotCall() != null) contact.setDoNotCall(request.getDoNotCall());
+        if (request.getConsentSource() != null) {
+            contact.setConsentSource(request.getConsentSource());
+            contact.setConsentDate(LocalDateTime.now());
+        }
+
+        Contact updatedContact = contactRepository.save(contact);
+        log.info("Contact updated: {}", contactId);
+
+        recordActivity(contactId, tenantId, "UPDATED", "Contact updated", userId);
+
+        eventPublisher.publish("contact-events", tenantId, userId, "Contact",
+                updatedContact.getId().toString(), "CONTACT_UPDATED", contactMapper.toResponse(updatedContact));
+
+        return contactMapper.toResponse(updatedContact);
+    }
+
+    @Transactional(readOnly = true)
+    @Cacheable(value = "contacts", key = "#contactId + '_' + T(com.crm.common.security.TenantContext).getTenantId()")
+    public ContactResponse getContactById(UUID contactId) {
+        String tenantId = TenantContext.getTenantId();
+        log.debug("Fetching contact: {} for tenant: {}", contactId, tenantId);
+
+        Contact contact = contactRepository.findByIdAndTenantIdAndDeletedFalse(contactId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Contact", "id", contactId));
+
+        return contactMapper.toResponse(contact);
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResponse<ContactResponse> getAllContacts(int page, int size, String sortBy, String sortDir) {
+        String tenantId = TenantContext.getTenantId();
+        Sort sort = sortDir.equalsIgnoreCase("desc") ? Sort.by(sortBy).descending() : Sort.by(sortBy).ascending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+
+        Page<Contact> contactPage = contactRepository.findByTenantIdAndDeletedFalse(tenantId, pageable);
+
+        return buildPagedResponse(contactPage);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Feature 2: Contact linking to accounts
+    // ═══════════════════════════════════════════════════════════
+    @Transactional(readOnly = true)
+    public PagedResponse<ContactResponse> getContactsByAccount(UUID accountId, int page, int size) {
+        String tenantId = TenantContext.getTenantId();
+        log.debug("Fetching contacts for account: {} tenant: {}", accountId, tenantId);
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+
+        Page<Contact> contactPage = contactRepository.findByAccountIdAndTenantIdAndDeletedFalse(accountId, tenantId, pageable);
+
+        return buildPagedResponse(contactPage);
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResponse<ContactResponse> searchContacts(String query, int page, int size) {
+        String tenantId = TenantContext.getTenantId();
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<Contact> contactPage = contactRepository.searchContacts(tenantId, query, pageable);
+
+        return buildPagedResponse(contactPage);
+    }
+
+    @Transactional
+    @CacheEvict(value = "contacts", allEntries = true)
+    public void deleteContact(UUID contactId, String userId) {
+        String tenantId = TenantContext.getTenantId();
+        log.info("Soft deleting contact: {}", contactId);
+
+        Contact contact = contactRepository.findByIdAndTenantIdAndDeletedFalse(contactId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Contact", "id", contactId));
+
+        contact.setDeleted(true);
+        contactRepository.save(contact);
+
+        recordActivity(contactId, tenantId, "DELETED", "Contact deleted", userId);
+
+        eventPublisher.publish("contact-events", tenantId, userId, "Contact",
+                contact.getId().toString(), "CONTACT_DELETED", null);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Feature 3: Communication history
+    // ═══════════════════════════════════════════════════════════
+    @Transactional
+    public CommunicationResponse addCommunication(UUID contactId, CreateCommunicationRequest request, String userId) {
+        String tenantId = TenantContext.getTenantId();
+        // Verify contact exists
+        contactRepository.findByIdAndTenantIdAndDeletedFalse(contactId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Contact", "id", contactId));
+
+        ContactCommunication comm = ContactCommunication.builder()
+                .contactId(contactId)
+                .commType(request.getCommType())
+                .subject(request.getSubject())
+                .body(request.getBody())
+                .direction(request.getDirection())
+                .status(request.getStatus() != null ? request.getStatus() : "COMPLETED")
+                .communicationDate(request.getCommunicationDate() != null ? request.getCommunicationDate() : LocalDateTime.now())
+                .tenantId(tenantId)
+                .createdBy(userId)
+                .build();
+
+        ContactCommunication saved = communicationRepository.save(comm);
+
+        recordActivity(contactId, tenantId, "COMMUNICATION_LOGGED",
+                request.getCommType() + " – " + (request.getSubject() != null ? request.getSubject() : "No subject"), userId);
+
+        return contactMapper.toCommunicationResponse(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResponse<CommunicationResponse> getCommunications(UUID contactId, int page, int size) {
+        String tenantId = TenantContext.getTenantId();
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<ContactCommunication> commPage =
+                communicationRepository.findByContactIdAndTenantIdOrderByCommunicationDateDesc(contactId, tenantId, pageable);
+
+        return PagedResponse.<CommunicationResponse>builder()
+                .content(commPage.getContent().stream().map(contactMapper::toCommunicationResponse).toList())
+                .pageNumber(commPage.getNumber())
+                .pageSize(commPage.getSize())
+                .totalElements(commPage.getTotalElements())
+                .totalPages(commPage.getTotalPages())
+                .last(commPage.isLast())
+                .first(commPage.isFirst())
+                .build();
+    }
+
+    @Transactional
+    public void deleteCommunication(UUID commId) {
+        String tenantId = TenantContext.getTenantId();
+        ContactCommunication comm = communicationRepository.findByIdAndTenantId(commId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Communication", "id", commId));
+        communicationRepository.delete(comm);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Feature 5: Segmentation
+    // ═══════════════════════════════════════════════════════════
+    @Transactional(readOnly = true)
+    public PagedResponse<ContactResponse> getContactsBySegment(String segment, int page, int size) {
+        String tenantId = TenantContext.getTenantId();
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<Contact> contactPage = contactRepository.findBySegmentAndTenantIdAndDeletedFalse(segment, tenantId, pageable);
+        return buildPagedResponse(contactPage);
+    }
+
+    @Transactional(readOnly = true)
+    public PagedResponse<ContactResponse> getContactsByLifecycleStage(String stage, int page, int size) {
+        String tenantId = TenantContext.getTenantId();
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<Contact> contactPage = contactRepository.findByLifecycleStageAndTenantIdAndDeletedFalse(stage, tenantId, pageable);
+        return buildPagedResponse(contactPage);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Feature 6: Marketing consent tracking
+    // ═══════════════════════════════════════════════════════════
+    @Transactional
+    @CacheEvict(value = "contacts", allEntries = true)
+    public ContactResponse updateConsent(UUID contactId, UpdateConsentRequest request, String userId) {
+        String tenantId = TenantContext.getTenantId();
+        Contact contact = contactRepository.findByIdAndTenantIdAndDeletedFalse(contactId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Contact", "id", contactId));
+
+        if (request.getEmailOptIn() != null) contact.setEmailOptIn(request.getEmailOptIn());
+        if (request.getSmsOptIn() != null) contact.setSmsOptIn(request.getSmsOptIn());
+        if (request.getPhoneOptIn() != null) contact.setPhoneOptIn(request.getPhoneOptIn());
+        if (request.getDoNotCall() != null) contact.setDoNotCall(request.getDoNotCall());
+        if (request.getConsentSource() != null) contact.setConsentSource(request.getConsentSource());
+        contact.setConsentDate(LocalDateTime.now());
+
+        Contact saved = contactRepository.save(contact);
+
+        recordActivity(contactId, tenantId, "CONSENT_UPDATED",
+                "Consent updated – email:" + contact.isEmailOptIn() + " sms:" + contact.isSmsOptIn(), userId);
+
+        return contactMapper.toResponse(saved);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Feature 7: Activity timeline
+    // ═══════════════════════════════════════════════════════════
+    @Transactional(readOnly = true)
+    public PagedResponse<ContactActivityResponse> getActivityTimeline(UUID contactId, int page, int size) {
+        String tenantId = TenantContext.getTenantId();
+        Pageable pageable = PageRequest.of(page, size);
+
+        Page<ContactActivity> activityPage =
+                activityRepository.findByContactIdAndTenantIdOrderByCreatedAtDesc(contactId, tenantId, pageable);
+
+        return PagedResponse.<ContactActivityResponse>builder()
+                .content(activityPage.getContent().stream().map(contactMapper::toActivityResponse).toList())
+                .pageNumber(activityPage.getNumber())
+                .pageSize(activityPage.getSize())
+                .totalElements(activityPage.getTotalElements())
+                .totalPages(activityPage.getTotalPages())
+                .last(activityPage.isLast())
+                .first(activityPage.isFirst())
+                .build();
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Feature 8: Contact tagging
+    // ═══════════════════════════════════════════════════════════
+    @Transactional
+    public ContactTagResponse addTag(UUID contactId, String tagName, String userId) {
+        String tenantId = TenantContext.getTenantId();
+        // Verify contact exists
+        contactRepository.findByIdAndTenantIdAndDeletedFalse(contactId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Contact", "id", contactId));
+
+        // Check if tag already exists
+        Optional<ContactTag> existing = tagRepository.findByContactIdAndTagNameAndTenantId(contactId, tagName, tenantId);
+        if (existing.isPresent()) {
+            return contactMapper.toTagResponse(existing.get());
+        }
+
+        ContactTag tag = ContactTag.builder()
+                .contactId(contactId)
+                .tagName(tagName)
+                .tenantId(tenantId)
+                .build();
+
+        ContactTag saved = tagRepository.save(tag);
+
+        recordActivity(contactId, tenantId, "TAG_ADDED", "Tag added: " + tagName, userId);
+
+        return contactMapper.toTagResponse(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ContactTagResponse> getTags(UUID contactId) {
+        String tenantId = TenantContext.getTenantId();
+        return tagRepository.findByContactIdAndTenantId(contactId, tenantId)
+                .stream().map(contactMapper::toTagResponse).toList();
+    }
+
+    @Transactional
+    public void removeTag(UUID contactId, String tagName, String userId) {
+        String tenantId = TenantContext.getTenantId();
+        tagRepository.deleteByContactIdAndTagNameAndTenantId(contactId, tagName, tenantId);
+        recordActivity(contactId, tenantId, "TAG_REMOVED", "Tag removed: " + tagName, userId);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Feature 9: Duplicate detection
+    // ═══════════════════════════════════════════════════════════
+    @Transactional(readOnly = true)
+    public List<DuplicateContactGroup> detectDuplicates() {
+        String tenantId = TenantContext.getTenantId();
+        List<Contact> all = contactRepository.findByTenantIdAndDeletedFalse(tenantId, PageRequest.of(0, 10000)).getContent();
+
+        List<DuplicateContactGroup> groups = new ArrayList<>();
+
+        // Group by email
+        Map<String, List<Contact>> byEmail = all.stream()
+                .filter(c -> c.getEmail() != null && !c.getEmail().isBlank())
+                .collect(Collectors.groupingBy(c -> c.getEmail().toLowerCase()));
+        byEmail.entrySet().stream()
+                .filter(e -> e.getValue().size() > 1)
+                .forEach(e -> groups.add(DuplicateContactGroup.builder()
+                        .matchField("email")
+                        .matchValue(e.getKey())
+                        .contacts(e.getValue().stream().map(contactMapper::toResponse).toList())
+                        .build()));
+
+        // Group by phone
+        Map<String, List<Contact>> byPhone = all.stream()
+                .filter(c -> c.getPhone() != null && !c.getPhone().isBlank())
+                .collect(Collectors.groupingBy(Contact::getPhone));
+        byPhone.entrySet().stream()
+                .filter(e -> e.getValue().size() > 1)
+                .forEach(e -> groups.add(DuplicateContactGroup.builder()
+                        .matchField("phone")
+                        .matchValue(e.getKey())
+                        .contacts(e.getValue().stream().map(contactMapper::toResponse).toList())
+                        .build()));
+
+        // Group by full name
+        Map<String, List<Contact>> byName = all.stream()
+                .collect(Collectors.groupingBy(c -> (c.getFirstName() + " " + c.getLastName()).toLowerCase()));
+        byName.entrySet().stream()
+                .filter(e -> e.getValue().size() > 1)
+                .forEach(e -> groups.add(DuplicateContactGroup.builder()
+                        .matchField("name")
+                        .matchValue(e.getKey())
+                        .contacts(e.getValue().stream().map(contactMapper::toResponse).toList())
+                        .build()));
+
+        return groups;
+    }
+
+    @Transactional
+    @CacheEvict(value = "contacts", allEntries = true)
+    public ContactResponse mergeContacts(UUID primaryId, UUID duplicateId, String userId) {
+        String tenantId = TenantContext.getTenantId();
+        Contact primary = contactRepository.findByIdAndTenantIdAndDeletedFalse(primaryId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Contact", "id", primaryId));
+        Contact duplicate = contactRepository.findByIdAndTenantIdAndDeletedFalse(duplicateId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Contact", "id", duplicateId));
+
+        // Fill in blanks from duplicate into primary
+        if (primary.getPhone() == null && duplicate.getPhone() != null) primary.setPhone(duplicate.getPhone());
+        if (primary.getMobilePhone() == null && duplicate.getMobilePhone() != null) primary.setMobilePhone(duplicate.getMobilePhone());
+        if (primary.getTitle() == null && duplicate.getTitle() != null) primary.setTitle(duplicate.getTitle());
+        if (primary.getDepartment() == null && duplicate.getDepartment() != null) primary.setDepartment(duplicate.getDepartment());
+        if (primary.getAccountId() == null && duplicate.getAccountId() != null) primary.setAccountId(duplicate.getAccountId());
+        if (primary.getMailingAddress() == null && duplicate.getMailingAddress() != null) primary.setMailingAddress(duplicate.getMailingAddress());
+        if (primary.getLinkedinUrl() == null && duplicate.getLinkedinUrl() != null) primary.setLinkedinUrl(duplicate.getLinkedinUrl());
+        if (primary.getTwitterUrl() == null && duplicate.getTwitterUrl() != null) primary.setTwitterUrl(duplicate.getTwitterUrl());
+        if (primary.getFacebookUrl() == null && duplicate.getFacebookUrl() != null) primary.setFacebookUrl(duplicate.getFacebookUrl());
+        if (primary.getSegment() == null && duplicate.getSegment() != null) primary.setSegment(duplicate.getSegment());
+
+        // Move communications from duplicate to primary
+        communicationRepository.findByContactIdAndTenantIdOrderByCommunicationDateDesc(duplicateId, tenantId, PageRequest.of(0, 10000))
+                .getContent().forEach(c -> { c.setContactId(primaryId); communicationRepository.save(c); });
+
+        // Move tags
+        tagRepository.findByContactIdAndTenantId(duplicateId, tenantId).forEach(t -> {
+            if (tagRepository.findByContactIdAndTagNameAndTenantId(primaryId, t.getTagName(), tenantId).isEmpty()) {
+                t.setContactId(primaryId);
+                tagRepository.save(t);
+            } else {
+                tagRepository.delete(t);
+            }
+        });
+
+        // Move activities
+        activityRepository.findByContactIdAndTenantIdOrderByCreatedAtDesc(duplicateId, tenantId, PageRequest.of(0, 10000))
+                .getContent().forEach(a -> { a.setContactId(primaryId); activityRepository.save(a); });
+
+        // Soft-delete duplicate
+        duplicate.setDeleted(true);
+        contactRepository.save(duplicate);
+
+        Contact saved = contactRepository.save(primary);
+
+        recordActivity(primaryId, tenantId, "MERGED",
+                "Merged with contact " + duplicate.getFirstName() + " " + duplicate.getLastName() + " (" + duplicateId + ")", userId);
+
+        return contactMapper.toResponse(saved);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Feature 10: Contact analytics
+    // ═══════════════════════════════════════════════════════════
+    @Transactional(readOnly = true)
+    public ContactAnalyticsResponse getAnalytics() {
+        String tenantId = TenantContext.getTenantId();
+
+        return ContactAnalyticsResponse.builder()
+                .totalContacts(contactRepository.countByTenantIdAndDeletedFalse(tenantId))
+                .contactsWithEmail(contactRepository.countByTenantIdAndDeletedFalseAndEmailIsNotNull(tenantId))
+                .contactsWithPhone(contactRepository.countByTenantIdAndDeletedFalseAndPhoneIsNotNull(tenantId))
+                .contactsWithAccount(contactRepository.countByTenantIdAndDeletedFalseAndAccountIdIsNotNull(tenantId))
+                .emailOptInCount(contactRepository.countByTenantIdAndDeletedFalseAndEmailOptInTrue(tenantId))
+                .smsOptInCount(contactRepository.countByTenantIdAndDeletedFalseAndSmsOptInTrue(tenantId))
+                .doNotCallCount(contactRepository.countByTenantIdAndDeletedFalseAndDoNotCallTrue(tenantId))
+                .bySegment(toMap(contactRepository.countBySegment(tenantId)))
+                .byLifecycleStage(toMap(contactRepository.countByLifecycleStage(tenantId)))
+                .byLeadSource(toMap(contactRepository.countByLeadSource(tenantId)))
+                .byDepartment(toMap(contactRepository.countByDepartment(tenantId)))
+                .build();
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Helpers
+    // ═══════════════════════════════════════════════════════════
+    private void recordActivity(UUID contactId, String tenantId, String type, String description, String userId) {
+        try {
+            ContactActivity activity = ContactActivity.builder()
+                    .contactId(contactId)
+                    .activityType(type)
+                    .description(description)
+                    .tenantId(tenantId)
+                    .createdBy(userId)
+                    .build();
+            activityRepository.save(activity);
+        } catch (Exception e) {
+            log.warn("Failed to record activity for contact {}: {}", contactId, e.getMessage());
+        }
+    }
+
+    private PagedResponse<ContactResponse> buildPagedResponse(Page<Contact> contactPage) {
+        return PagedResponse.<ContactResponse>builder()
+                .content(contactPage.getContent().stream().map(contactMapper::toResponse).toList())
+                .pageNumber(contactPage.getNumber())
+                .pageSize(contactPage.getSize())
+                .totalElements(contactPage.getTotalElements())
+                .totalPages(contactPage.getTotalPages())
+                .last(contactPage.isLast())
+                .first(contactPage.isFirst())
+                .build();
+    }
+
+    private Map<String, Long> toMap(List<Object[]> rows) {
+        Map<String, Long> map = new LinkedHashMap<>();
+        for (Object[] row : rows) {
+            map.put(String.valueOf(row[0]), (Long) row[1]);
+        }
+        return map;
+    }
+}

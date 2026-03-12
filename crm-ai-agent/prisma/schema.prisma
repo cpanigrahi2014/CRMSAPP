@@ -1,0 +1,256 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── CRM Object Metadata ────────────────────────────────────────────────────
+
+model CrmObject {
+  id          String     @id @default(uuid()) @db.Uuid
+  name        String     @unique @db.VarChar(120)
+  label       String     @db.VarChar(200)
+  pluralLabel String     @map("plural_label") @db.VarChar(200)
+  description String?    @db.Text
+  icon        String?    @db.VarChar(60)
+  isSystem    Boolean    @default(false) @map("is_system")
+  isActive    Boolean    @default(true) @map("is_active")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  updatedAt   DateTime   @updatedAt @map("updated_at")
+  createdBy   String?    @map("created_by") @db.Uuid
+
+  fields        CrmField[]
+  relationships CrmRelationship[] @relation("SourceObject")
+  targetOf      CrmRelationship[] @relation("TargetObject")
+
+  @@map("crm_objects")
+}
+
+model CrmField {
+  id           String   @id @default(uuid()) @db.Uuid
+  objectId     String   @map("object_id") @db.Uuid
+  name         String   @db.VarChar(120)
+  label        String   @db.VarChar(200)
+  fieldType    String   @map("field_type") @db.VarChar(40)
+  isRequired   Boolean  @default(false) @map("is_required")
+  isUnique     Boolean  @default(false) @map("is_unique")
+  defaultValue String?  @map("default_value") @db.Text
+  options      Json?    // picklist options
+  description  String?  @db.Text
+  isSystem     Boolean  @default(false) @map("is_system")
+  isActive     Boolean  @default(true) @map("is_active")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  createdBy    String?  @map("created_by") @db.Uuid
+
+  object CrmObject @relation(fields: [objectId], references: [id], onDelete: Cascade)
+
+  @@unique([objectId, name])
+  @@map("crm_fields")
+}
+
+model CrmRelationship {
+  id               String   @id @default(uuid()) @db.Uuid
+  name             String   @db.VarChar(120)
+  sourceObjectId   String   @map("source_object_id") @db.Uuid
+  targetObjectId   String   @map("target_object_id") @db.Uuid
+  relationshipType String   @map("relationship_type") @db.VarChar(30) // one_to_one, one_to_many, many_to_many
+  description      String?  @db.Text
+  isActive         Boolean  @default(true) @map("is_active")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  createdBy        String?  @map("created_by") @db.Uuid
+
+  sourceObject CrmObject @relation("SourceObject", fields: [sourceObjectId], references: [id], onDelete: Cascade)
+  targetObject CrmObject @relation("TargetObject", fields: [targetObjectId], references: [id], onDelete: Cascade)
+
+  @@map("crm_relationships")
+}
+
+// ─── Pipeline ────────────────────────────────────────────────────────────────
+
+model Pipeline {
+  id          String          @id @default(uuid()) @db.Uuid
+  name        String          @unique @db.VarChar(200)
+  objectName  String          @map("object_name") @db.VarChar(120)
+  description String?         @db.Text
+  isDefault   Boolean         @default(false) @map("is_default")
+  isActive    Boolean         @default(true) @map("is_active")
+  createdAt   DateTime        @default(now()) @map("created_at")
+  updatedAt   DateTime        @updatedAt @map("updated_at")
+  createdBy   String?         @map("created_by") @db.Uuid
+
+  stages PipelineStage[]
+
+  @@map("pipelines")
+}
+
+model PipelineStage {
+  id           String   @id @default(uuid()) @db.Uuid
+  pipelineId   String   @map("pipeline_id") @db.Uuid
+  name         String   @db.VarChar(200)
+  probability  Int      @default(0)
+  sortOrder    Int      @map("sort_order")
+  isClosed     Boolean  @default(false) @map("is_closed")
+  isWon        Boolean  @default(false) @map("is_won")
+  color        String?  @db.VarChar(20)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  pipeline Pipeline @relation(fields: [pipelineId], references: [id], onDelete: Cascade)
+
+  @@unique([pipelineId, name])
+  @@map("pipeline_stages")
+}
+
+// ─── Workflow / Automation ───────────────────────────────────────────────────
+
+model Workflow {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @db.VarChar(200)
+  objectName  String   @map("object_name") @db.VarChar(120)
+  triggerType String   @map("trigger_type") @db.VarChar(40) // on_create, on_update, field_change, scheduled
+  triggerConfig Json?  @map("trigger_config")
+  conditions  Json?    // filter conditions
+  actions     Json     // array of action definitions
+  description String?  @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdBy   String?  @map("created_by") @db.Uuid
+
+  @@map("workflows")
+}
+
+model AutomationRule {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String   @db.VarChar(200)
+  objectName  String   @map("object_name") @db.VarChar(120)
+  ruleType    String   @map("rule_type") @db.VarChar(40) // validation, assignment, escalation, auto_response
+  conditions  Json
+  actions     Json
+  priority    Int      @default(0)
+  description String?  @db.Text
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  createdBy   String?  @map("created_by") @db.Uuid
+
+  @@map("automation_rules")
+}
+
+// ─── Dashboard ───────────────────────────────────────────────────────────────
+
+model Dashboard {
+  id          String            @id @default(uuid()) @db.Uuid
+  name        String            @db.VarChar(200)
+  description String?           @db.Text
+  layout      Json?             // grid layout definition
+  isDefault   Boolean           @default(false) @map("is_default")
+  isActive    Boolean           @default(true) @map("is_active")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+  createdBy   String?           @map("created_by") @db.Uuid
+
+  widgets DashboardWidget[]
+
+  @@map("dashboards")
+}
+
+model DashboardWidget {
+  id          String   @id @default(uuid()) @db.Uuid
+  dashboardId String   @map("dashboard_id") @db.Uuid
+  widgetType  String   @map("widget_type") @db.VarChar(40) // chart, metric, table, list
+  title       String   @db.VarChar(200)
+  config      Json     // data source, chart type, filters, etc.
+  position    Json     // { x, y, w, h }
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  dashboard Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+
+  @@map("dashboard_widgets")
+}
+
+// ─── Roles & Permissions ─────────────────────────────────────────────────────
+
+model Role {
+  id          String       @id @default(uuid()) @db.Uuid
+  name        String       @unique @db.VarChar(120)
+  description String?      @db.Text
+  isSystem    Boolean      @default(false) @map("is_system")
+  isActive    Boolean      @default(true) @map("is_active")
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  permissions Permission[]
+
+  @@map("roles")
+}
+
+model Permission {
+  id         String   @id @default(uuid()) @db.Uuid
+  roleId     String   @map("role_id") @db.Uuid
+  objectName String   @map("object_name") @db.VarChar(120)
+  canCreate  Boolean  @default(false) @map("can_create")
+  canRead    Boolean  @default(true) @map("can_read")
+  canUpdate  Boolean  @default(false) @map("can_update")
+  canDelete  Boolean  @default(false) @map("can_delete")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  role Role @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, objectName])
+  @@map("permissions")
+}
+
+// ─── AI Audit Logging ────────────────────────────────────────────────────────
+
+model ConfigAuditLog {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  instruction     String   @db.Text
+  generatedConfig Json     @map("generated_config")
+  executionStatus String   @map("execution_status") @db.VarChar(30) // pending, confirmed, executed, failed, rejected
+  errorMessage    String?  @map("error_message") @db.Text
+  executedAt      DateTime? @map("executed_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([executionStatus])
+  @@index([createdAt])
+  @@map("config_audit_logs")
+}
+
+// ─── Conversation Context ────────────────────────────────────────────────────
+
+model ConversationSession {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  messages ConversationMessage[]
+
+  @@index([userId])
+  @@map("conversation_sessions")
+}
+
+model ConversationMessage {
+  id        String   @id @default(uuid()) @db.Uuid
+  sessionId String   @map("session_id") @db.Uuid
+  role      String   @db.VarChar(20) // user, assistant, system
+  content   String   @db.Text
+  metadata  Json?    // parsed config, execution result, etc.
+  createdAt DateTime @default(now()) @map("created_at")
+
+  session ConversationSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("conversation_messages")
+}

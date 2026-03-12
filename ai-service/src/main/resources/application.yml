@@ -1,0 +1,133 @@
+spring:
+  application:
+    name: ai-service
+
+  datasource:
+    url: jdbc:postgresql://127.0.0.1:5434/crm_ai
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  kafka:
+    bootstrap-servers: ${KAFKA_SERVERS:localhost:9092}
+    consumer:
+      group-id: ai-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "com.crm.common.event,com.crm.common.event.*"
+
+server:
+  port: 9089
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:dGhpcyBpcyBhIHZlcnkgbG9uZyBzZWNyZXQga2V5IGZvciBqd3QgdG9rZW4gZ2VuZXJhdGlvbiB0aGF0IGlzIGF0IGxlYXN0IDI1NiBiaXRz}
+    expiration-ms: 86400000
+
+ai:
+  llm:
+    base-url: ${LLM_BASE_URL:https://api.openai.com/v1}
+    api-key: ${LLM_API_KEY:your-api-key-here}
+    default-model: ${LLM_DEFAULT_MODEL:gpt-4}
+    connect-timeout-ms: ${LLM_CONNECT_TIMEOUT:5000}
+    read-timeout-ms: ${LLM_READ_TIMEOUT:30000}
+    write-timeout-ms: ${LLM_WRITE_TIMEOUT:10000}
+    timeout-seconds: ${LLM_TIMEOUT_SECONDS:60}
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      llmService:
+        register-health-indicator: true
+        sliding-window-type: COUNT_BASED
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 30s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        record-exceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException
+          - java.util.concurrent.TimeoutException
+          - java.io.IOException
+  retry:
+    instances:
+      llmService:
+        max-attempts: 3
+        wait-duration: 2s
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException.ServiceUnavailable
+          - org.springframework.web.reactive.function.client.WebClientResponseException.TooManyRequests
+          - java.util.concurrent.TimeoutException
+          - java.io.IOException
+        ignore-exceptions:
+          - org.springframework.web.reactive.function.client.WebClientResponseException.BadRequest
+          - org.springframework.web.reactive.function.client.WebClientResponseException.Unauthorized
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus,circuitbreakers,circuitbreakerevents
+  endpoint:
+    health:
+      show-details: always
+  health:
+    circuitbreakers:
+      enabled: true
+
+logging:
+  level:
+    com.crm: DEBUG
+    io.github.resilience4j: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level [%X{tenantId}] %logger{36} - %msg%n"
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:5434}/crm_ai
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+ai:
+  llm:
+    base-url: ${LLM_BASE_URL}
+    api-key: ${LLM_API_KEY}
+    default-model: ${LLM_DEFAULT_MODEL:gpt-4}
+    connect-timeout-ms: ${LLM_CONNECT_TIMEOUT:5000}
+    read-timeout-ms: ${LLM_READ_TIMEOUT:30000}
+    write-timeout-ms: ${LLM_WRITE_TIMEOUT:10000}
+    timeout-seconds: ${LLM_TIMEOUT_SECONDS:60}
+
+logging:
+  level:
+    com.crm: INFO
+    io.github.resilience4j: INFO

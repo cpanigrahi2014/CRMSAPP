@@ -1,0 +1,32 @@
+# AI
+openai>=1.30.0
+
+# Web / API testing
+playwright>=1.44.0
+requests>=2.31.0
+httpx>=0.27.0
+
+# Test framework
+pytest>=8.2.0
+pytest-asyncio>=0.23.0
+pytest-playwright>=0.5.0
+pytest-html>=4.1.0
+allure-pytest>=2.13.0
+allure-python-commons>=2.13.0
+
+# Data & validation
+pydantic>=2.7.0
+pydantic-settings>=2.3.0
+jinja2>=3.1.0
+
+# Utilities
+python-dotenv>=1.0.0
+rich>=13.7.0
+pyyaml>=6.0.0
+Pillow>=10.3.0
+
+# Bug tracking
+jira>=3.8.0
+
+# Async
+aiofiles>=23.2.0
