@@ -83,41 +83,43 @@ const DashboardPage: React.FC = () => {
   useEffect(() => { load(); }, [load]);
 
   const d = dashboard;
-  const pipelineStageData = d ? (d.stageBreakdown || []).map((s) => ({
-    stage: s.stage.replace(/_/g, ' '),
-    value: s.totalAmount,
-    count: s.count,
-  })) : [];
-
-  const leadSourceData = d ? Object.entries(d.revenueByLeadSource || {}).map(([name, value]) => ({
-    name, value,
-  })) : [];
-
-  const forecastData = d ? [
-    { name: 'Pipeline', value: d.forecastPipeline || 0 },
-    { name: 'Best Case', value: d.forecastBestCase || 0 },
-    { name: 'Commit', value: d.forecastCommit || 0 },
-    { name: 'Closed', value: d.forecastClosed || 0 },
-  ].filter((f) => f.value > 0) : [];
-
-  const convRates = conversion ? Object.values(conversion.conversionRates || {}).map((r) => ({
-    stage: r.fromStage.replace(/_/g, ' '),
-    rate: Math.round(r.conversionPct * 10) / 10,
-    count: r.transitioned,
-  })) : [];
 
   const totalAlerts = d ? (d.overdueDeals || 0) + (d.closingSoonDeals || 0) + (d.staleDeals || 0) : 0;
 
   /* ---- Define draggable widgets ---- */
   const dashboardWidgets: DashboardWidget[] = useMemo(() => {
     if (!d) return [];
+
+    const pipelineStageData = (d.stageBreakdown || []).map((s) => ({
+      stage: s.stage.replace(/_/g, ' '),
+      value: s.totalAmount,
+      count: s.count,
+    }));
+
+    const leadSourceData = Object.entries(d.revenueByLeadSource || {}).map(([name, value]) => ({
+      name, value,
+    }));
+
+    const forecastData = [
+      { name: 'Pipeline', value: d.forecastPipeline || 0 },
+      { name: 'Best Case', value: d.forecastBestCase || 0 },
+      { name: 'Commit', value: d.forecastCommit || 0 },
+      { name: 'Closed', value: d.forecastClosed || 0 },
+    ].filter((f) => f.value > 0);
+
+    const convRates = conversion ? Object.values(conversion.conversionRates || {}).map((r) => ({
+      stage: r.fromStage.replace(/_/g, ' '),
+      rate: Math.round(r.conversionPct * 10) / 10,
+      count: r.transitioned,
+    })) : [];
+
     return [
     {
       id: 'pipeline-by-stage',
       content: (
         <Grid container spacing={2} sx={{ mb: 2 }}>
           <Grid item xs={12} md={7}>
-            <ChartWidget title="Pipeline by Stage" subtitle="Revenue per pipeline stage" height={220}>
+            <ChartWidget title="Pipeline by Stage" subtitle="Revenue per pipeline stage" height={170}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={pipelineStageData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
@@ -130,15 +132,15 @@ const DashboardPage: React.FC = () => {
             </ChartWidget>
           </Grid>
           <Grid item xs={12} md={5}>
-            <ChartWidget title="Revenue by Source" subtitle="Lead source distribution" height={220}>
+            <ChartWidget title="Revenue by Source" subtitle="Lead source distribution" height={170}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={leadSourceData}
                     cx="50%"
                     cy="50%"
-                    innerRadius={35}
-                    outerRadius={60}
+                    innerRadius={28}
+                    outerRadius={50}
                     paddingAngle={4}
                     dataKey="value"
                     label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
@@ -160,7 +162,7 @@ const DashboardPage: React.FC = () => {
       content: (
         <Grid container spacing={2} sx={{ mb: 2 }}>
           <Grid item xs={12} md={6}>
-            <ChartWidget title="Forecast Categories" subtitle="Pipeline forecast breakdown" height={200}>
+            <ChartWidget title="Forecast Categories" subtitle="Pipeline forecast breakdown" height={160}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={forecastData} layout="vertical">
                   <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
@@ -173,7 +175,7 @@ const DashboardPage: React.FC = () => {
             </ChartWidget>
           </Grid>
           <Grid item xs={12} md={6}>
-            <ChartWidget title="Stage Conversion Rates" subtitle="Percentage moving to next stage" height={200}>
+            <ChartWidget title="Stage Conversion Rates" subtitle="Percentage moving to next stage" height={160}>
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={convRates}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
@@ -277,7 +279,7 @@ const DashboardPage: React.FC = () => {
       ),
     },
   ];
-  }, [d, pipelineStageData, leadSourceData, forecastData, convRates, quotas]);
+  }, [d, conversion, quotas]);
 
   if (loading) return <Box sx={{ display: 'flex', justifyContent: 'center', py: 8 }}><CircularProgress /></Box>;
   if (error) return <Alert severity="error" sx={{ m: 3 }}>{error}</Alert>;
