@@ -372,6 +372,7 @@ const LeadsPage: React.FC = () => {
         onClose={() => setFormOpen(false)}
         onSubmit={handleSubmit}
         loading={saving}
+        disableSubmit={!formData.firstName.trim() || !formData.lastName.trim() || !formData.email.trim() || !formData.company.trim()}
         maxWidth="md"
       >
         <Grid container spacing={2} sx={{ mt: 0 }}>

@@ -296,6 +296,7 @@ const ContactsPage: React.FC = () => {
         onClose={() => setFormOpen(false)}
         onSubmit={handleSubmit}
         loading={saving}
+        disableSubmit={!formData.firstName.trim() || !formData.lastName.trim() || !formData.email.trim()}
       >
         <Grid container spacing={2} sx={{ mt: 0 }}>
           <Grid item xs={12} sm={6}>

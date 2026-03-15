@@ -298,6 +298,7 @@ const AccountsPage: React.FC = () => {
         onClose={() => setFormOpen(false)}
         onSubmit={handleSubmit}
         loading={saving}
+        disableSubmit={!formData.name.trim()}
         maxWidth="md"
       >
         <Grid container spacing={2} sx={{ mt: 0 }}>

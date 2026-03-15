@@ -20,6 +20,7 @@ interface Props {
   onSubmit: (e: React.FormEvent) => void;
   submitLabel?: string;
   loading?: boolean;
+  disableSubmit?: boolean;
   maxWidth?: 'xs' | 'sm' | 'md' | 'lg';
   children: ReactNode;
 }
@@ -31,6 +32,7 @@ const ModalForm: React.FC<Props> = ({
   onSubmit,
   submitLabel = 'Save',
   loading = false,
+  disableSubmit = false,
   maxWidth = 'sm',
   children,
 }) => (
@@ -49,7 +51,7 @@ const ModalForm: React.FC<Props> = ({
         <Button onClick={onClose} color="inherit" disabled={loading}>
           Cancel
         </Button>
-        <Button type="submit" variant="contained" disabled={loading}>
+        <Button type="submit" variant="contained" disabled={loading || disableSubmit}>
           {loading ? 'Saving…' : submitLabel}
         </Button>
       </DialogActions>
