@@ -29,7 +29,7 @@ async function fetchPlanLimits(authToken?: string): Promise<PlanLimits | null> {
       headers: authToken ? { Authorization: `Bearer ${authToken}` } : {},
     });
     if (!res.ok) return null;
-    const body = await res.json();
+    const body = (await res.json()) as { data?: PlanLimits };
     return body.data ?? null;
   } catch (err) {
     logger.warn('Could not fetch plan limits — skipping enforcement', { error: String(err) });
@@ -38,13 +38,13 @@ async function fetchPlanLimits(authToken?: string): Promise<PlanLimits | null> {
 }
 
 /** Count resources helper */
-async function countResources(tenantId: string) {
+async function countResources(_tenantId: string) {
   const [objects, workflows, dashboards, pipelines, roles] = await Promise.all([
-    prisma.crmObject.count({ where: { tenantId } }),
-    prisma.workflow.count({ where: { tenantId } }),
-    prisma.dashboard.count({ where: { tenantId } }),
-    prisma.pipeline.count({ where: { tenantId } }),
-    prisma.role.count({ where: { tenantId } }),
+    prisma.crmObject.count(),
+    prisma.workflow.count(),
+    prisma.dashboard.count(),
+    prisma.pipeline.count(),
+    prisma.role.count(),
   ]);
   return { objects, workflows, dashboards, pipelines, roles };
 }
