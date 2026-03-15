@@ -119,6 +119,22 @@ public class CommunicationController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    @PostMapping("/whatsapp/webhook")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'USER')")
+    @Operation(summary = "Receive inbound WhatsApp message (webhook)")
+    public ResponseEntity<ApiResponse<WhatsAppMessageResponse>> whatsAppWebhook(
+            @Valid @RequestBody WhatsAppWebhookRequest request) {
+        WhatsAppMessageResponse response = whatsAppService.receiveInbound(
+                request.getFromNumber(),
+                request.getToNumber() != null ? request.getToNumber() : "+10000000000",
+                request.getBody(),
+                request.getMediaUrl(),
+                request.getMediaType(),
+                request.getMessageType());
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(response, "Inbound WhatsApp message received"));
+    }
+
     // ─── Calls ───────────────────────────────────────────
 
     @PostMapping("/calls/initiate")

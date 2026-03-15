@@ -41,6 +41,7 @@ import {
   Code as DeveloperIcon,
   DataObject as ObjectManagerIcon,
   Payments as PricingIcon,
+  Screenshot as ScreenCaptureIcon,
 } from '@mui/icons-material';
 
 export const DRAWER_WIDTH = 260;
@@ -73,6 +74,7 @@ const menuItems = [
   { label: 'Developer', path: '/developer', icon: <DeveloperIcon /> },
   { label: 'Object Manager', path: '/object-manager', icon: <ObjectManagerIcon /> },
   { label: 'Pricing & Plans', path: '/pricing', icon: <PricingIcon /> },
+  { label: 'Screen Capture', path: '/screen-capture', icon: <ScreenCaptureIcon /> },
   { label: 'Settings', path: '/settings', icon: <SettingsIcon /> },
 ];
 

@@ -1,6 +1,8 @@
 package com.crm.email.service;
 
+import com.crm.common.event.EventPublisher;
 import com.crm.email.dto.EmailMessageDto;
+import com.crm.email.dto.InboundEmailRequest;
 import com.crm.email.dto.SendEmailRequest;
 import com.crm.email.entity.*;
 import com.crm.email.repository.*;
@@ -31,6 +33,7 @@ public class EmailSendService {
     private final EmailTrackingEventRepository trackingRepo;
     private final EmailAccountService accountService;
     private final EmailTemplateService templateService;
+    private final EventPublisher eventPublisher;
 
     @Value("${app.email.tracking-base-url:http://localhost:9090}")
     private String trackingBaseUrl;
@@ -127,6 +130,47 @@ public class EmailSendService {
         }
 
         return toDto(messageRepo.save(msg));
+    }
+
+    /* ── Receive Inbound Email ─────────────────────────────── */
+
+    @Transactional
+    public EmailMessageDto receiveInbound(String tenantId, String userId, InboundEmailRequest req) {
+        log.info("Receiving inbound email from {} for tenant {}", req.getFromAddress(), tenantId);
+
+        EmailMessage msg = new EmailMessage();
+        msg.setTenantId(tenantId);
+        msg.setCreatedBy(userId);
+        msg.setFromAddress(req.getFromAddress());
+        msg.setToAddresses(req.getToAddress());
+        msg.setCcAddresses(req.getCcAddresses());
+        msg.setSubject(req.getSubject());
+        msg.setBodyHtml(req.getBodyHtml());
+        msg.setBodyText(req.getBodyText());
+        msg.setDirection(EmailMessage.Direction.INBOUND);
+        msg.setStatus(EmailMessage.Status.RECEIVED);
+        msg.setThreadId(UUID.randomUUID().toString());
+        msg.setRelatedEntityType(req.getRelatedEntityType());
+        msg.setRelatedEntityId(req.getRelatedEntityId());
+        msg.setOpened(false);
+        msg.setOpenCount(0);
+        msg.setClickCount(0);
+
+        msg = messageRepo.save(msg);
+        log.info("Inbound email saved: id={} from={}", msg.getId(), req.getFromAddress());
+
+        // Publish Kafka event so lead-service can auto-create a lead
+        eventPublisher.publish("email-events", tenantId, userId, "Email",
+                msg.getId().toString(), "EMAIL_RECEIVED",
+                java.util.Map.of(
+                        "fromAddress", req.getFromAddress(),
+                        "toAddress", req.getToAddress(),
+                        "subject", req.getSubject() != null ? req.getSubject() : "",
+                        "bodyText", req.getBodyText() != null ? req.getBodyText() : "",
+                        "emailMessageId", msg.getId().toString()
+                ));
+
+        return toDto(msg);
     }
 
     /* ── Send already-persisted message (used by scheduler) ──── */

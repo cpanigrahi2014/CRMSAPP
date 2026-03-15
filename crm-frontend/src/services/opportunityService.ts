@@ -182,4 +182,16 @@ export const opportunityService = {
 
   recalculateQuotas: () =>
     api.post<ApiResponse<void>>('/api/v1/quotas/recalculate').then((r) => r.data),
+
+  /* ---- Import / Export ---- */
+  importCsv: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post<ApiResponse<{ imported: number }>>(`${BASE}/import`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then((r) => r.data);
+  },
+
+  exportCsv: () =>
+    api.get<string>(`${BASE}/export`, { responseType: 'text' as any }).then((r) => r.data),
 };

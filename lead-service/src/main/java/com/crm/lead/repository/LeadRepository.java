@@ -39,8 +39,8 @@ public interface LeadRepository extends JpaRepository<Lead, UUID> {
 
     // Duplicate detection – find leads with same email or phone
     @Query("SELECT l FROM Lead l WHERE l.tenantId = :tenantId AND l.deleted = false " +
-            "AND ((:email IS NOT NULL AND LOWER(l.email) = LOWER(:email)) " +
-            "OR (:phone IS NOT NULL AND l.phone = :phone))")
+            "AND ((COALESCE(:email, '') <> '' AND LOWER(l.email) = LOWER(CAST(:email AS string))) " +
+            "OR (COALESCE(:phone, '') <> '' AND l.phone = :phone))")
     List<Lead> findDuplicates(@Param("tenantId") String tenantId,
                               @Param("email") String email,
                               @Param("phone") String phone);

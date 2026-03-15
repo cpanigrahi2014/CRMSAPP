@@ -37,6 +37,9 @@ app:
   jwt:
     secret: ${JWT_SECRET:dGhpcyBpcyBhIHZlcnkgbG9uZyBzZWNyZXQga2V5IGZvciBqd3QgdG9rZW4gZ2VuZXJhdGlvbiB0aGF0IGlzIGF0IGxlYXN0IDI1NiBiaXRz}
     expiration-ms: 86400000
+  services:
+    contact-url: ${CONTACT_SERVICE_URL:http://localhost:9084}
+    opportunity-url: ${OPPORTUNITY_SERVICE_URL:http://localhost:9085}
 
 management:
   endpoints:

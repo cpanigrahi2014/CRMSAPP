@@ -38,6 +38,7 @@ public class OpportunityResponse {
     private LocalDate predictedCloseDate;
     private Integer confidenceScore;
     private UUID ownerId;
+    private BigDecimal expectedRevenue;
     private String tenantId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

@@ -35,4 +35,8 @@ public interface AccountTagRepository extends JpaRepository<AccountTag, UUID> {
     @Query(value = "DELETE FROM account_tag_mappings WHERE account_id = :accountId AND tag_id = :tagId",
             nativeQuery = true)
     void removeTagFromAccount(@Param("accountId") UUID accountId, @Param("tagId") UUID tagId);
+
+    @Query(value = "SELECT tag_id FROM account_tag_mappings WHERE account_id = :accountId",
+            nativeQuery = true)
+    List<UUID> findTagIdsByAccountId(@Param("accountId") UUID accountId);
 }

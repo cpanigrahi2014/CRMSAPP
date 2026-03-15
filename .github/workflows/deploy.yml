@@ -1,0 +1,173 @@
+###############################################################################
+# GitHub Actions — Build, Push & Deploy to AWS ECS
+###############################################################################
+name: Deploy to AWS
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      service:
+        description: "Service to deploy (leave empty for all)"
+        required: false
+        type: string
+
+env:
+  AWS_REGION: us-east-1
+  ECS_CLUSTER: crm-prod
+  PROJECT_NAME: crm
+
+permissions:
+  id-token: write    # OIDC for AWS
+  contents: read
+
+jobs:
+  # ── Detect changed services ────────────────────────────────────────────────
+  detect-changes:
+    runs-on: ubuntu-latest
+    outputs:
+      services: ${{ steps.changes.outputs.services }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - id: changes
+        run: |
+          if [[ -n "${{ github.event.inputs.service }}" ]]; then
+            echo 'services=["${{ github.event.inputs.service }}"]' >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD)
+          SERVICES=()
+
+          declare -A DIR_MAP=(
+            ["auth-service"]="auth-service"
+            ["lead-service"]="lead-service"
+            ["account-service"]="account-service"
+            ["contact-service"]="contact-service"
+            ["opportunity-service"]="opportunity-service"
+            ["activity-service"]="activity-service"
+            ["notification-service"]="notification-service"
+            ["workflow-service"]="workflow-service"
+            ["ai-service"]="ai-service"
+            ["email-service"]="email-service"
+            ["integration-service"]="integration-service"
+            ["case-service"]="case-service"
+            ["campaign-service"]="campaign-service"
+            ["ai-agent"]="crm-ai-agent"
+            ["frontend"]="crm-frontend"
+          )
+
+          for svc in "${!DIR_MAP[@]}"; do
+            dir="${DIR_MAP[$svc]}"
+            if echo "$CHANGED_FILES" | grep -q "^${dir}/"; then
+              SERVICES+=("\"${svc}\"")
+            fi
+          done
+
+          # Also rebuild if common lib changed
+          if echo "$CHANGED_FILES" | grep -q "^crm-common/"; then
+            for svc in auth-service lead-service account-service contact-service \
+                       opportunity-service activity-service notification-service \
+                       workflow-service ai-service email-service integration-service \
+                       case-service campaign-service; do
+              if [[ ! " ${SERVICES[*]} " =~ "\"${svc}\"" ]]; then
+                SERVICES+=("\"${svc}\"")
+              fi
+            done
+          fi
+
+          if [[ ${#SERVICES[@]} -eq 0 ]]; then
+            echo 'services=[]' >> "$GITHUB_OUTPUT"
+          else
+            echo "services=[$(IFS=,; echo "${SERVICES[*]}")]" >> "$GITHUB_OUTPUT"
+          fi
+
+      - run: echo "Services to deploy:${{ steps.changes.outputs.services }}"
+
+  # ── Build & Push to ECR ────────────────────────────────────────────────────
+  build-push:
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services != '[]'
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: ecr-login
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set build context
+        id: ctx
+        run: |
+          declare -A CONTEXTS=(
+            ["auth-service"]="auth-service"
+            ["lead-service"]="lead-service"
+            ["account-service"]="account-service"
+            ["contact-service"]="contact-service"
+            ["opportunity-service"]="opportunity-service"
+            ["activity-service"]="activity-service"
+            ["notification-service"]="notification-service"
+            ["workflow-service"]="workflow-service"
+            ["ai-service"]="ai-service"
+            ["email-service"]="email-service"
+            ["integration-service"]="integration-service"
+            ["case-service"]="case-service"
+            ["campaign-service"]="campaign-service"
+            ["ai-agent"]="crm-ai-agent"
+            ["frontend"]="crm-frontend"
+          )
+          echo "context=${CONTEXTS[${{ matrix.service }}]}" >> "$GITHUB_OUTPUT"
+
+      - name: Build & push image
+        env:
+          ECR_REGISTRY: ${{ steps.ecr-login.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          REPO="${ECR_REGISTRY}/${{ env.PROJECT_NAME }}/${{ matrix.service }}"
+          docker build -t "${REPO}:${IMAGE_TAG}" -t "${REPO}:latest" \
+            "./${{ steps.ctx.outputs.context }}"
+          docker push "${REPO}:${IMAGE_TAG}"
+          docker push "${REPO}:latest"
+
+  # ── Deploy to ECS ──────────────────────────────────────────────────────────
+  deploy:
+    needs: [detect-changes, build-push]
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+      max-parallel: 4
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy to ECS
+        run: |
+          aws ecs update-service \
+            --cluster "${{ env.ECS_CLUSTER }}" \
+            --service "${{ matrix.service }}" \
+            --force-new-deployment \
+            --no-cli-pager
+
+      - name: Wait for stability
+        run: |
+          aws ecs wait services-stable \
+            --cluster "${{ env.ECS_CLUSTER }}" \
+            --services "${{ matrix.service }}"
+          echo "✓ ${{ matrix.service }} deployed successfully"

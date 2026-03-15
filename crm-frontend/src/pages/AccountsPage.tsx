@@ -14,7 +14,6 @@ import {
   Chip,
   Button,
   Box,
-  Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -64,8 +63,7 @@ const AccountsPage: React.FC = () => {
 
   // Bulk / Import
   const [selectedIds, setSelectedIds] = useState<GridRowSelectionModel>([]);
-  const [importOpen, setImportOpen] = useState(false);
-  const [importCsv, setImportCsv] = useState('');
+  const importInputRef = React.useRef<HTMLInputElement>(null);
 
   const fetchAccounts = useCallback(async () => {
     setLoading(true);
@@ -161,17 +159,17 @@ const AccountsPage: React.FC = () => {
     }
   };
 
-  const handleImport = async () => {
-    if (!importCsv.trim()) return;
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
     try {
-      const res = await accountService.importCsv(importCsv);
+      const res = await accountService.importCsv(file);
       enqueueSnackbar(`Imported ${(res.data as any)?.imported ?? 0} accounts`, { variant: 'success' });
-      setImportOpen(false);
-      setImportCsv('');
       fetchAccounts();
     } catch {
       enqueueSnackbar('Import failed', { variant: 'error' });
     }
+    if (importInputRef.current) importInputRef.current.value = '';
   };
 
   const handleChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -272,7 +270,8 @@ const AccountsPage: React.FC = () => {
             Delete {selectedIds.length} Selected
           </Button>
         )}
-        <Button variant="outlined" size="small" startIcon={<ImportIcon />} onClick={() => setImportOpen(true)}>Import CSV</Button>
+        <Button variant="outlined" size="small" startIcon={<ImportIcon />} onClick={() => importInputRef.current?.click()}>Import CSV</Button>
+        <input type="file" accept=".csv" hidden ref={importInputRef} onChange={handleImport} />
         <Button variant="outlined" size="small" startIcon={<ExportIcon />} onClick={handleExport}>Export CSV</Button>
       </Box>
 
@@ -355,20 +354,6 @@ const AccountsPage: React.FC = () => {
         onConfirm={handleDelete}
         onCancel={() => setDeleteId(null)}
       />
-
-      {/* Import CSV Dialog */}
-      <Dialog open={importOpen} onClose={() => setImportOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Import Accounts from CSV</DialogTitle>
-        <DialogContent>
-          <TextField fullWidth multiline rows={10}
-            placeholder="name,industry,website,phone,type,territory,segment,lifecycle_stage&#10;Acme Inc,Technology,acme.com,555-0100,CUSTOMER,West,Enterprise,ACTIVE"
-            value={importCsv} onChange={(e) => setImportCsv(e.target.value)} sx={{ mt: 1 }} />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setImportOpen(false)}>Cancel</Button>
-          <Button variant="contained" onClick={handleImport}>Import</Button>
-        </DialogActions>
-      </Dialog>
     </>
   );
 };

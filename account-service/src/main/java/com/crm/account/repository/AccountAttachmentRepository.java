@@ -14,4 +14,6 @@ public interface AccountAttachmentRepository extends JpaRepository<AccountAttach
     List<AccountAttachment> findByAccountIdAndTenantIdAndDeletedFalseOrderByCreatedAtDesc(UUID accountId, String tenantId);
 
     Optional<AccountAttachment> findByIdAndTenantIdAndDeletedFalse(UUID id, String tenantId);
+
+    List<AccountAttachment> findByAccountIdAndDeletedFalse(UUID accountId);
 }

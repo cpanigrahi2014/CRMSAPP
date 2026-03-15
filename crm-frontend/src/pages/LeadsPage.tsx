@@ -59,6 +59,7 @@ const LeadsPage: React.FC = () => {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [rowCount, setRowCount] = useState(0);
   const [paginationModel, setPaginationModel] = useState<GridPaginationModel>({ page: 0, pageSize: 10 });
 
   // form dialog
@@ -91,7 +92,9 @@ const LeadsPage: React.FC = () => {
     setLoading(true);
     try {
       const res = await leadService.getAll(paginationModel.page, paginationModel.pageSize);
-      setLeads(Array.isArray(res.data) ? res.data : (res.data as any).content ?? []);
+      const paged = res.data as any;
+      setLeads(Array.isArray(paged) ? paged : paged.content ?? []);
+      if (paged?.totalElements !== undefined) setRowCount(paged.totalElements);
     } catch {
       enqueueSnackbar('Failed to load leads', { variant: 'error' });
     } finally {
@@ -355,6 +358,8 @@ const LeadsPage: React.FC = () => {
         addLabel="New Lead"
         paginationModel={paginationModel}
         onPaginationModelChange={setPaginationModel}
+        paginationMode="server"
+        rowCount={rowCount}
         checkboxSelection
         onRowSelectionModelChange={setSelectedIds}
         rowSelectionModel={selectedIds}

@@ -18,6 +18,13 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
+
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.*;
 import java.math.BigDecimal;
@@ -36,6 +43,13 @@ public class AccountService {
     private final AccountActivityRepository accountActivityRepository;
     private final AccountMapper accountMapper;
     private final EventPublisher eventPublisher;
+    private final RestTemplate restTemplate;
+
+    @Value("${app.services.contact-url:http://localhost:9084}")
+    private String contactServiceUrl;
+
+    @Value("${app.services.opportunity-url:http://localhost:9085}")
+    private String opportunityServiceUrl;
 
     // ── 1. Create Account ──────────────────────────────────────
     @Transactional
@@ -322,6 +336,18 @@ public class AccountService {
         return imported;
     }
 
+    @Transactional
+    @CacheEvict(value = "accounts", allEntries = true)
+    public Map<String, Object> importAccountsFromFile(MultipartFile file, String userId) {
+        try {
+            String csvContent = new String(file.getBytes(), java.nio.charset.StandardCharsets.UTF_8);
+            int count = importAccountsFromCsv(csvContent, userId);
+            return Map.of("imported", count);
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read CSV file", e);
+        }
+    }
+
     // ── 17. Account Export (CSV) ──────────────────────────────
     @Transactional(readOnly = true)
     public String exportAccountsToCsv() {
@@ -535,6 +561,154 @@ public class AccountService {
     private Account findAccountOrThrow(UUID accountId, String tenantId) {
         return accountRepository.findByIdAndTenantIdAndDeletedFalse(accountId, tenantId)
                 .orElseThrow(() -> new ResourceNotFoundException("Account", "id", accountId));
+    }
+
+    // ── Account Merge ─────────────────────────────────────────
+    @Transactional
+    @CacheEvict(value = "accounts", allEntries = true)
+    public AccountResponse mergeAccounts(UUID primaryId, UUID duplicateId, String userId) {
+        String tenantId = TenantContext.getTenantId();
+        log.info("Merging account {} into {} for tenant {}", duplicateId, primaryId, tenantId);
+
+        Account primary = findAccountOrThrow(primaryId, tenantId);
+        Account duplicate = findAccountOrThrow(duplicateId, tenantId);
+
+        // 1. Fill blank fields on primary from duplicate
+        if (primary.getIndustry() == null && duplicate.getIndustry() != null) primary.setIndustry(duplicate.getIndustry());
+        if (primary.getWebsite() == null && duplicate.getWebsite() != null) primary.setWebsite(duplicate.getWebsite());
+        if (primary.getPhone() == null && duplicate.getPhone() != null) primary.setPhone(duplicate.getPhone());
+        if (primary.getBillingAddress() == null && duplicate.getBillingAddress() != null) primary.setBillingAddress(duplicate.getBillingAddress());
+        if (primary.getShippingAddress() == null && duplicate.getShippingAddress() != null) primary.setShippingAddress(duplicate.getShippingAddress());
+        if (primary.getAnnualRevenue() == null && duplicate.getAnnualRevenue() != null) primary.setAnnualRevenue(duplicate.getAnnualRevenue());
+        if (primary.getNumberOfEmployees() == null && duplicate.getNumberOfEmployees() != null) primary.setNumberOfEmployees(duplicate.getNumberOfEmployees());
+        if (primary.getDescription() == null && duplicate.getDescription() != null) primary.setDescription(duplicate.getDescription());
+        if (primary.getTerritory() == null && duplicate.getTerritory() != null) primary.setTerritory(duplicate.getTerritory());
+        if (primary.getSegment() == null && duplicate.getSegment() != null) primary.setSegment(duplicate.getSegment());
+        accountRepository.save(primary);
+
+        // 2. Move child accounts from duplicate to primary
+        List<Account> children = accountRepository.findByParentAccountIdAndTenantIdAndDeletedFalse(duplicateId, tenantId);
+        children.forEach(child -> child.setParentAccountId(primaryId));
+        accountRepository.saveAll(children);
+
+        // 3. Move notes from duplicate to primary
+        List<AccountNote> notes = accountNoteRepository.findByAccountIdAndDeletedFalse(duplicateId);
+        notes.forEach(n -> n.setAccountId(primaryId));
+        accountNoteRepository.saveAll(notes);
+
+        // 4. Move attachments from duplicate to primary
+        List<AccountAttachment> attachments = accountAttachmentRepository.findByAccountIdAndDeletedFalse(duplicateId);
+        attachments.forEach(a -> a.setAccountId(primaryId));
+        accountAttachmentRepository.saveAll(attachments);
+
+        // 5. Move activities from duplicate to primary
+        List<AccountActivity> activities = accountActivityRepository.findByAccountIdAndDeletedFalse(duplicateId);
+        activities.forEach(a -> a.setAccountId(primaryId));
+        accountActivityRepository.saveAll(activities);
+
+        // 6. Move tags (deduplicate via ON CONFLICT DO NOTHING)
+        List<UUID> dupTagIds = accountTagRepository.findTagIdsByAccountId(duplicateId);
+        for (UUID tagId : dupTagIds) {
+            accountTagRepository.addTagToAccount(primaryId, tagId);
+            accountTagRepository.removeTagFromAccount(duplicateId, tagId);
+        }
+
+        // 7. Re-link contacts from duplicate to primary (cross-service)
+        int contactsRelinked = relinkContacts(duplicateId, primaryId, tenantId);
+
+        // 8. Re-link opportunities from duplicate to primary (cross-service)
+        int opportunitiesRelinked = relinkOpportunities(duplicateId, primaryId, tenantId);
+
+        // 9. Soft-delete duplicate
+        duplicate.setDeleted(true);
+        accountRepository.save(duplicate);
+
+        // 10. Log audit activity
+        String mergeDesc = String.format("Merged account '%s' (id=%s) into this account. " +
+                "Transferred: %d notes, %d attachments, %d activities, %d tags, %d child accounts, " +
+                "%d contacts re-linked, %d opportunities re-linked",
+                duplicate.getName(), duplicateId,
+                notes.size(), attachments.size(), activities.size(), dupTagIds.size(), children.size(),
+                contactsRelinked, opportunitiesRelinked);
+        logActivity(primaryId, tenantId, "MERGED", mergeDesc, userId);
+
+        eventPublisher.publish("account-events", tenantId, userId, "Account",
+                primaryId.toString(), "ACCOUNT_MERGED",
+                Map.of("duplicateAccountId", duplicateId.toString(),
+                       "duplicateAccountName", duplicate.getName()));
+
+        log.info("Account merge complete: {} absorbed {}", primaryId, duplicateId);
+        return toResponseWithTags(primary, tenantId);
+    }
+
+    @SuppressWarnings("unchecked")
+    private int relinkContacts(UUID fromAccountId, UUID toAccountId, String tenantId) {
+        int relinked = 0;
+        try {
+            HttpHeaders headers = buildForwardHeaders();
+            String url = contactServiceUrl + "/api/v1/contacts/account/" + fromAccountId + "?size=1000";
+            ResponseEntity<Map> resp = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+            if (resp.getBody() != null && resp.getBody().get("data") instanceof Map data
+                    && data.get("content") instanceof List<?> contacts) {
+                for (Object c : contacts) {
+                    if (c instanceof Map<?, ?> contact) {
+                        String contactId = contact.get("id").toString();
+                        Map<String, Object> updateBody = new HashMap<>();
+                        updateBody.put("accountId", toAccountId.toString());
+                        HttpEntity<Map<String, Object>> updateEntity = new HttpEntity<>(updateBody, headers);
+                        restTemplate.exchange(
+                                contactServiceUrl + "/api/v1/contacts/" + contactId,
+                                HttpMethod.PUT, updateEntity, Map.class);
+                        relinked++;
+                        log.info("Re-linked contact {} from account {} to {}", contactId, fromAccountId, toAccountId);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not re-link contacts during merge: {}", e.getMessage());
+        }
+        return relinked;
+    }
+
+    @SuppressWarnings("unchecked")
+    private int relinkOpportunities(UUID fromAccountId, UUID toAccountId, String tenantId) {
+        int relinked = 0;
+        try {
+            HttpHeaders headers = buildForwardHeaders();
+            String url = opportunityServiceUrl + "/api/v1/opportunities/account/" + fromAccountId + "?size=1000";
+            ResponseEntity<Map> resp = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+            if (resp.getBody() != null && resp.getBody().get("data") instanceof Map data
+                    && data.get("content") instanceof List<?> opportunities) {
+                for (Object o : opportunities) {
+                    if (o instanceof Map<?, ?> opp) {
+                        String oppId = opp.get("id").toString();
+                        Map<String, Object> updateBody = new HashMap<>();
+                        updateBody.put("accountId", toAccountId.toString());
+                        HttpEntity<Map<String, Object>> updateEntity = new HttpEntity<>(updateBody, headers);
+                        restTemplate.exchange(
+                                opportunityServiceUrl + "/api/v1/opportunities/" + oppId,
+                                HttpMethod.PUT, updateEntity, Map.class);
+                        relinked++;
+                        log.info("Re-linked opportunity {} from account {} to {}", oppId, fromAccountId, toAccountId);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.warn("Could not re-link opportunities during merge: {}", e.getMessage());
+        }
+        return relinked;
+    }
+
+    private HttpHeaders buildForwardHeaders() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        ServletRequestAttributes attrs =
+                (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+        if (attrs != null) {
+            String authHeader = attrs.getRequest().getHeader("Authorization");
+            if (authHeader != null) headers.set("Authorization", authHeader);
+        }
+        return headers;
     }
 
     private AccountResponse toResponseWithTags(Account account, String tenantId) {

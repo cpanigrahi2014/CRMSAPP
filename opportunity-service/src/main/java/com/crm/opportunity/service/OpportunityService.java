@@ -20,8 +20,12 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.*;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
@@ -66,13 +70,18 @@ public class OpportunityService {
             opportunity.setProbability(getStageProbabilityWeight(opportunity.getStage()));
         }
 
+        // Validate close date is not in the past
+        if (opportunity.getCloseDate() != null && opportunity.getCloseDate().isBefore(LocalDate.now())) {
+            throw new BadRequestException("Close date cannot be in the past");
+        }
+
         Opportunity saved = opportunityRepository.save(opportunity);
         recordActivity(saved.getId(), tenantId, "CREATED", "Opportunity created: " + saved.getName(), userId);
 
         eventPublisher.publish("opportunity-events", tenantId, userId, "Opportunity",
-                saved.getId().toString(), "OPPORTUNITY_CREATED", opportunityMapper.toResponse(saved));
+                saved.getId().toString(), "OPPORTUNITY_CREATED", toResponseWithExpectedRevenue(saved));
 
-        return opportunityMapper.toResponse(saved);
+        return toResponseWithExpectedRevenue(saved);
     }
 
     // ─── Update ──────────────────────────────────────────────────────
@@ -103,9 +112,9 @@ public class OpportunityService {
         recordActivity(updated.getId(), tenantId, "UPDATED", "Opportunity updated", userId);
 
         eventPublisher.publish("opportunity-events", tenantId, userId, "Opportunity",
-                updated.getId().toString(), "OPPORTUNITY_UPDATED", opportunityMapper.toResponse(updated));
+                updated.getId().toString(), "OPPORTUNITY_UPDATED", toResponseWithExpectedRevenue(updated));
 
-        return opportunityMapper.toResponse(updated);
+        return toResponseWithExpectedRevenue(updated);
     }
 
     // ─── Read ────────────────────────────────────────────────────────
@@ -113,7 +122,7 @@ public class OpportunityService {
     @Cacheable(value = "opportunities", key = "#opportunityId + '_' + T(com.crm.common.security.TenantContext).getTenantId()")
     public OpportunityResponse getOpportunityById(UUID opportunityId) {
         String tenantId = TenantContext.getTenantId();
-        return opportunityMapper.toResponse(findOpp(opportunityId, tenantId));
+        return toResponseWithExpectedRevenue(findOpp(opportunityId, tenantId));
     }
 
     @Transactional(readOnly = true)
@@ -168,13 +177,22 @@ public class OpportunityService {
     // ─── 2. Sales Pipeline Stages + 11. Stage Automation ─────────────
     @Transactional
     @CacheEvict(value = "opportunities", allEntries = true)
-    public OpportunityResponse updateStage(UUID opportunityId, Opportunity.OpportunityStage newStage, String lostReason, String userId) {
+    public OpportunityResponse updateStage(UUID opportunityId, Opportunity.OpportunityStage newStage, String lostReason, String competitor, String userId) {
         String tenantId = TenantContext.getTenantId();
         Opportunity opp = findOpp(opportunityId, tenantId);
         Opportunity.OpportunityStage previousStage = opp.getStage();
 
         if (previousStage == Opportunity.OpportunityStage.CLOSED_WON || previousStage == Opportunity.OpportunityStage.CLOSED_LOST) {
             throw new BadRequestException("Cannot change stage of a closed opportunity");
+        }
+
+        // Require lost reason when marking as CLOSED_LOST
+        if (newStage == Opportunity.OpportunityStage.CLOSED_LOST && (lostReason == null || lostReason.isBlank())) {
+            throw new BadRequestException("Lost reason is required when closing an opportunity as lost");
+        }
+        // Require competitor when marking as CLOSED_LOST
+        if (newStage == Opportunity.OpportunityStage.CLOSED_LOST && (competitor == null || competitor.isBlank())) {
+            throw new BadRequestException("Competitor is required when closing an opportunity as lost");
         }
 
         opp.setStage(newStage);
@@ -200,6 +218,20 @@ public class OpportunityService {
         recordActivity(updated.getId(), tenantId, "STAGE_CHANGED",
                 "Stage changed from " + previousStage + " to " + newStage, userId);
 
+        // Auto-record competitor when closing as lost
+        if (newStage == Opportunity.OpportunityStage.CLOSED_LOST && competitor != null && !competitor.isBlank()) {
+            try {
+                OpportunityCompetitor comp = new OpportunityCompetitor();
+                comp.setOpportunityId(updated.getId());
+                comp.setCompetitorName(competitor);
+                comp.setStrengths(lostReason);
+                comp.setTenantId(tenantId);
+                competitorRepository.save(comp);
+            } catch (Exception e) {
+                log.warn("Failed to record competitor: {}", e.getMessage());
+            }
+        }
+
         // Record stage history for conversion analytics
         long timeInStage = 0;
         if (opp.getUpdatedAt() != null) {
@@ -224,7 +256,7 @@ public class OpportunityService {
                 updated.getId().toString(), "OPPORTUNITY_STAGE_CHANGED",
                 Map.of("previousStage", previousStage.name(), "newStage", newStage.name()));
 
-        return opportunityMapper.toResponse(updated);
+        return toResponseWithExpectedRevenue(updated);
     }
 
     // ─── 3. Value Tracking (amount on entity) + Products ─────────────
@@ -263,7 +295,7 @@ public class OpportunityService {
         Opportunity saved = opportunityRepository.save(opp);
         recordActivity(saved.getId(), tenantId, "PREDICTION",
                 "Close date predicted: " + saved.getPredictedCloseDate() + " (confidence: " + saved.getConfidenceScore() + "%)", null);
-        return opportunityMapper.toResponse(saved);
+        return toResponseWithExpectedRevenue(saved);
     }
 
     // ─── 5. Probability Scoring (auto on stage change, see updateStage) ──
@@ -918,6 +950,108 @@ public class OpportunityService {
                 .collect(Collectors.groupingBy(o -> o.getStage().name(), LinkedHashMap::new, Collectors.toList()));
     }
 
+    // ─── Import / Export ───────────────────────────────────────────
+    @Transactional
+    @CacheEvict(value = "opportunities", allEntries = true)
+    public Map<String, Object> importOpportunitiesFromFile(MultipartFile file, String userId) {
+        String tenantId = TenantContext.getTenantId();
+        log.info("Importing opportunities from CSV for tenant: {}", tenantId);
+        int imported = 0;
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
+            String headerLine = reader.readLine();
+            if (headerLine == null) return Map.of("imported", 0);
+            String[] headers = headerLine.trim().split(",");
+            Map<String, Integer> colMap = new HashMap<>();
+            for (int i = 0; i < headers.length; i++) {
+                colMap.put(headers[i].trim().toLowerCase().replaceAll("[^a-z0-9_]", ""), i);
+            }
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                try {
+                    String[] vals = line.trim().split(",", -1);
+                    if (vals.length < 1 || vals[0].isBlank()) continue;
+
+                    Opportunity opp = new Opportunity();
+                    opp.setTenantId(tenantId);
+
+                    String name = getCsvCol(vals, colMap, "name");
+                    if (name == null || name.isBlank()) continue;
+                    opp.setName(name);
+
+                    String amount = getCsvCol(vals, colMap, "amount");
+                    if (amount != null) opp.setAmount(new BigDecimal(amount));
+
+                    String stage = getCsvCol(vals, colMap, "stage");
+                    if (stage != null) {
+                        try { opp.setStage(Opportunity.OpportunityStage.valueOf(stage.toUpperCase())); }
+                        catch (IllegalArgumentException e) { opp.setStage(Opportunity.OpportunityStage.PROSPECTING); }
+                    }
+
+                    String prob = getCsvCol(vals, colMap, "probability");
+                    if (prob != null) opp.setProbability(Integer.parseInt(prob));
+
+                    String closeDate = getCsvCol(vals, colMap, "closedate", "close_date");
+                    if (closeDate != null) opp.setCloseDate(LocalDate.parse(closeDate));
+
+                    opp.setDescription(getCsvCol(vals, colMap, "description"));
+                    opp.setCurrency(getCsvCol(vals, colMap, "currency"));
+                    if (opp.getCurrency() == null) opp.setCurrency("USD");
+                    opp.setNextStep(getCsvCol(vals, colMap, "nextstep", "next_step"));
+                    opp.setLeadSource(getCsvCol(vals, colMap, "leadsource", "lead_source", "source"));
+
+                    opportunityRepository.save(opp);
+                    imported++;
+                } catch (Exception e) {
+                    log.warn("Skipping CSV row: {}", e.getMessage());
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read CSV file", e);
+        }
+        log.info("Imported {} opportunities", imported);
+        return Map.of("imported", imported);
+    }
+
+    @Transactional(readOnly = true)
+    public String exportOpportunitiesToCsv() {
+        String tenantId = TenantContext.getTenantId();
+        List<Opportunity> opps = opportunityRepository.findByTenantIdAndDeletedFalse(tenantId);
+        StringBuilder sb = new StringBuilder();
+        sb.append("name,amount,stage,probability,close_date,description,currency,next_step,lead_source\n");
+        for (Opportunity o : opps) {
+            sb.append(csvEscape(o.getName())).append(",")
+              .append(o.getAmount() != null ? o.getAmount() : "").append(",")
+              .append(o.getStage() != null ? o.getStage().name() : "").append(",")
+              .append(o.getProbability() != null ? o.getProbability() : "").append(",")
+              .append(o.getCloseDate() != null ? o.getCloseDate() : "").append(",")
+              .append(csvEscape(o.getDescription())).append(",")
+              .append(csvEscape(o.getCurrency())).append(",")
+              .append(csvEscape(o.getNextStep())).append(",")
+              .append(csvEscape(o.getLeadSource())).append("\n");
+        }
+        return sb.toString();
+    }
+
+    private String getCsvCol(String[] vals, Map<String, Integer> colMap, String... keys) {
+        for (String key : keys) {
+            Integer idx = colMap.get(key);
+            if (idx != null && idx < vals.length) {
+                String v = vals[idx].trim();
+                if (!v.isEmpty()) return v;
+            }
+        }
+        return null;
+    }
+
+    private String csvEscape(String value) {
+        if (value == null) return "";
+        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────────
     private Opportunity findOpp(UUID id, String tenantId) {
         return opportunityRepository.findByIdAndTenantIdAndDeletedFalse(id, tenantId)
@@ -940,7 +1074,7 @@ public class OpportunityService {
 
     private PagedResponse<OpportunityResponse> buildPaged(Page<Opportunity> p) {
         return PagedResponse.<OpportunityResponse>builder()
-                .content(p.getContent().stream().map(opportunityMapper::toResponse).toList())
+                .content(p.getContent().stream().map(this::toResponseWithExpectedRevenue).toList())
                 .pageNumber(p.getNumber()).pageSize(p.getSize())
                 .totalElements(p.getTotalElements()).totalPages(p.getTotalPages())
                 .last(p.isLast()).first(p.isFirst()).build();
@@ -956,5 +1090,15 @@ public class OpportunityService {
             case CLOSED_WON -> 100;
             case CLOSED_LOST -> 0;
         };
+    }
+
+    private OpportunityResponse toResponseWithExpectedRevenue(Opportunity opp) {
+        OpportunityResponse resp = opportunityMapper.toResponse(opp);
+        if (opp.getAmount() != null && opp.getProbability() != null) {
+            resp.setExpectedRevenue(opp.getAmount()
+                    .multiply(BigDecimal.valueOf(opp.getProbability()))
+                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP));
+        }
+        return resp;
     }
 }

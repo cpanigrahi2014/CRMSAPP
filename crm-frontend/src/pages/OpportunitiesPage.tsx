@@ -14,11 +14,14 @@ import {
   MenuItem,
   Stack,
   Link,
+  Button,
 } from '@mui/material';
 import {
   ViewKanban as KanbanIcon,
   ViewList as ListIcon,
   Add as AddIcon,
+  FileUpload as ImportIcon,
+  FileDownload as ExportIcon,
 } from '@mui/icons-material';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { useSnackbar } from 'notistack';
@@ -80,6 +83,7 @@ const OpportunitiesPage: React.FC = () => {
   const [formData, setFormData] = useState(emptyOpp);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const importInputRef = React.useRef<HTMLInputElement>(null);
 
   /* ---- fetch ---- */
   const fetchOpps = useCallback(async () => {
@@ -182,6 +186,33 @@ const OpportunitiesPage: React.FC = () => {
   const handleChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setFormData((p) => ({ ...p, [field]: e.target.value }));
 
+  const handleExport = async () => {
+    try {
+      const csv = await opportunityService.exportCsv();
+      const blob = new Blob([csv as any], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'opportunities.csv'; a.click();
+      URL.revokeObjectURL(url);
+      enqueueSnackbar('Export complete', { variant: 'success' });
+    } catch {
+      enqueueSnackbar('Export failed', { variant: 'error' });
+    }
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const res = await opportunityService.importCsv(file);
+      enqueueSnackbar(`Imported ${(res.data as any)?.imported ?? 0} opportunities`, { variant: 'success' });
+      fetchOpps();
+    } catch {
+      enqueueSnackbar('Import failed', { variant: 'error' });
+    }
+    if (importInputRef.current) importInputRef.current.value = '';
+  };
+
   /* ---- list columns ---- */
   const listColumns = useMemo<GridColDef[]>(
     () => [
@@ -234,6 +265,13 @@ const OpportunitiesPage: React.FC = () => {
           </Stack>
         }
       />
+
+      {/* Import / Export bar */}
+      <Box sx={{ mb: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+        <Button variant="outlined" size="small" startIcon={<ImportIcon />} onClick={() => importInputRef.current?.click()}>Import CSV</Button>
+        <input type="file" accept=".csv" hidden ref={importInputRef} onChange={handleImport} />
+        <Button variant="outlined" size="small" startIcon={<ExportIcon />} onClick={handleExport}>Export CSV</Button>
+      </Box>
 
       {/* ── Filter Bar ── */}
       <Stack direction="row" spacing={2} sx={{ mb: 2, flexWrap: 'wrap' }} alignItems="center">

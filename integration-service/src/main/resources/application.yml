@@ -37,6 +37,11 @@ app:
   jwt:
     secret: ${JWT_SECRET:dGhpcyBpcyBhIHZlcnkgbG9uZyBzZWNyZXQga2V5IGZvciBqd3QgdG9rZW4gZ2VuZXJhdGlvbiB0aGF0IGlzIGF0IGxlYXN0IDI1NiBiaXRz}
     expiration-ms: 86400000
+  services:
+    lead-url: ${LEAD_SERVICE_URL:http://localhost:9082}
+    case-url: ${CASE_SERVICE_URL:http://localhost:9093}
+    opportunity-url: ${OPPORTUNITY_SERVICE_URL:http://localhost:9085}
+    activity-url: ${ACTIVITY_SERVICE_URL:http://localhost:9086}
 
 management:
   endpoints:

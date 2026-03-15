@@ -1,0 +1,40 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Example variables — copy to terraform.tfvars and fill in your values
+# ─────────────────────────────────────────────────────────────────────────────
+
+aws_region  = "us-east-1"
+environment = "prod"
+
+# RDS
+db_instance_class    = "db.t3.medium"
+db_allocated_storage = 20
+db_master_username   = "postgres"
+db_master_password   = "CHANGE_ME_strong_password_here"
+db_multi_az          = false         # Set true for production HA
+
+# ElastiCache
+redis_node_type = "cache.t3.small"
+
+# MSK Kafka
+kafka_instance_type = "kafka.t3.small"
+kafka_broker_count  = 2
+
+# ECS
+service_cpu    = 512    # 0.5 vCPU
+service_memory = 1024   # 1 GB
+desired_count  = 1      # Tasks per service
+
+# Secrets
+jwt_secret    = "CHANGE_ME_your_jwt_secret_base64_here"
+llm_api_key   = "sk-proj-your-openai-key-here"
+llm_model     = "gpt-4o"
+llm_base_url  = "https://api.openai.com/v1"
+
+# Mail (optional)
+mail_host     = "smtp.gmail.com"
+mail_port     = 587
+mail_username = "noreply@example.com"
+mail_password = ""
+
+# Domain (leave empty to skip DNS setup)
+domain_name = ""

@@ -12,7 +12,8 @@ import java.util.UUID;
         @Index(name = "idx_lead_tenant", columnList = "tenant_id"),
         @Index(name = "idx_lead_status", columnList = "status"),
         @Index(name = "idx_lead_assigned_to", columnList = "assigned_to"),
-        @Index(name = "idx_lead_email", columnList = "email")
+        @Index(name = "idx_lead_email", columnList = "email"),
+        @Index(name = "idx_lead_phone", columnList = "phone")
 })
 @Getter
 @Setter
@@ -85,10 +86,10 @@ public class Lead extends BaseEntity {
     private UUID contactId;
 
     public enum LeadStatus {
-        NEW, CONTACTED, QUALIFIED, UNQUALIFIED, CONVERTED, LOST
+        NEW, CONTACTED, WORKING, QUALIFIED, UNQUALIFIED, CONVERTED, LOST
     }
 
     public enum LeadSource {
-        WEB, PHONE, EMAIL, REFERRAL, SOCIAL_MEDIA, TRADE_SHOW, OTHER
+        WEB, PHONE, EMAIL, REFERRAL, SOCIAL_MEDIA, TRADE_SHOW, WHATSAPP, OTHER
     }
 }

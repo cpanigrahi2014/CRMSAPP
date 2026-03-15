@@ -19,6 +19,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.web.multipart.MultipartFile;
+
+import java.io.*;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -477,6 +481,104 @@ public class ContactService {
                 .byLeadSource(toMap(contactRepository.countByLeadSource(tenantId)))
                 .byDepartment(toMap(contactRepository.countByDepartment(tenantId)))
                 .build();
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Import / Export
+    // ═══════════════════════════════════════════════════════════
+    @Transactional
+    @CacheEvict(value = "contacts", allEntries = true)
+    public Map<String, Object> importContactsFromFile(MultipartFile file, String userId) {
+        String tenantId = TenantContext.getTenantId();
+        log.info("Importing contacts from CSV for tenant: {}", tenantId);
+        int imported = 0;
+        try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream(), StandardCharsets.UTF_8))) {
+            String headerLine = reader.readLine();
+            if (headerLine == null) return Map.of("imported", 0);
+            String[] headers = headerLine.trim().split(",");
+            Map<String, Integer> colMap = new HashMap<>();
+            for (int i = 0; i < headers.length; i++) {
+                colMap.put(headers[i].trim().toLowerCase().replaceAll("[^a-z0-9_]", ""), i);
+            }
+
+            String line;
+            while ((line = reader.readLine()) != null) {
+                try {
+                    String[] vals = line.trim().split(",", -1);
+                    if (vals.length < 1 || vals[0].isBlank()) continue;
+
+                    Contact contact = new Contact();
+                    contact.setTenantId(tenantId);
+
+                    String firstName = getCsvCol(vals, colMap, "firstname", "first_name");
+                    String lastName = getCsvCol(vals, colMap, "lastname", "last_name");
+                    if (firstName == null || firstName.isBlank()) continue;
+                    contact.setFirstName(firstName);
+                    contact.setLastName(lastName != null ? lastName : "");
+                    contact.setEmail(getCsvCol(vals, colMap, "email"));
+                    contact.setPhone(getCsvCol(vals, colMap, "phone"));
+                    contact.setMobilePhone(getCsvCol(vals, colMap, "mobilephone", "mobile_phone", "mobile"));
+                    contact.setTitle(getCsvCol(vals, colMap, "title"));
+                    contact.setDepartment(getCsvCol(vals, colMap, "department"));
+                    contact.setMailingAddress(getCsvCol(vals, colMap, "mailingaddress", "mailing_address", "address"));
+                    contact.setDescription(getCsvCol(vals, colMap, "description"));
+                    contact.setSegment(getCsvCol(vals, colMap, "segment"));
+                    contact.setLifecycleStage(getCsvCol(vals, colMap, "lifecyclestage", "lifecycle_stage"));
+                    contact.setLeadSource(getCsvCol(vals, colMap, "leadsource", "lead_source", "source"));
+
+                    contactRepository.save(contact);
+                    imported++;
+                } catch (Exception e) {
+                    log.warn("Skipping CSV row: {}", e.getMessage());
+                }
+            }
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to read CSV file", e);
+        }
+        log.info("Imported {} contacts", imported);
+        return Map.of("imported", imported);
+    }
+
+    @Transactional(readOnly = true)
+    public String exportContactsToCsv() {
+        String tenantId = TenantContext.getTenantId();
+        List<Contact> contacts = contactRepository.findByTenantIdAndDeletedFalse(tenantId);
+        StringBuilder sb = new StringBuilder();
+        sb.append("first_name,last_name,email,phone,mobile_phone,title,department,mailing_address,description,segment,lifecycle_stage,lead_source\n");
+        for (Contact c : contacts) {
+            sb.append(csvEscape(c.getFirstName())).append(",")
+              .append(csvEscape(c.getLastName())).append(",")
+              .append(csvEscape(c.getEmail())).append(",")
+              .append(csvEscape(c.getPhone())).append(",")
+              .append(csvEscape(c.getMobilePhone())).append(",")
+              .append(csvEscape(c.getTitle())).append(",")
+              .append(csvEscape(c.getDepartment())).append(",")
+              .append(csvEscape(c.getMailingAddress())).append(",")
+              .append(csvEscape(c.getDescription())).append(",")
+              .append(csvEscape(c.getSegment())).append(",")
+              .append(csvEscape(c.getLifecycleStage())).append(",")
+              .append(csvEscape(c.getLeadSource())).append("\n");
+        }
+        return sb.toString();
+    }
+
+    private String getCsvCol(String[] vals, Map<String, Integer> colMap, String... keys) {
+        for (String key : keys) {
+            Integer idx = colMap.get(key);
+            if (idx != null && idx < vals.length) {
+                String v = vals[idx].trim();
+                if (!v.isEmpty()) return v;
+            }
+        }
+        return null;
+    }
+
+    private String csvEscape(String value) {
+        if (value == null) return "";
+        if (value.contains(",") || value.contains("\"") || value.contains("\n")) {
+            return "\"" + value.replace("\"", "\"\"") + "\"";
+        }
+        return value;
     }
 
     // ═══════════════════════════════════════════════════════════

@@ -1,0 +1,16 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.12, pytest-9.0.2, pluggy-1.6.0
+rootdir: C:\Users\cpani\CRMSAPP\crm-test-agent
+configfile: pytest.ini
+plugins: allure-pytest-2.15.3, anyio-4.11.0, asyncio-1.3.0, base-url-2.1.0, html-4.2.0, metadata-3.1.1, playwright-0.7.2
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 490 items
+
+automation\test_mod01_auth.py ..............................             [  6%]
+automation\test_mod02_roles.py .FF..F......                              [  8%]
+automation\test_mod03_leads.py .........................                 [ 13%]
+automation\test_mod04_contacts.py ..................                     [ 17%]
+automation\test_mod05_accounts.py ..................                     [ 21%]
+automation\test_mod06_opportunities.py .........................         [ 26%]
+automation\test_mod07_pipeline.py ...........                            [ 28%]
+automation\test_mod08_tasks.py .............                             [ 31%]

@@ -19,6 +19,7 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  Button,
 } from '@mui/material';
 import {
   Edit as EditIcon,
@@ -26,6 +27,8 @@ import {
   Email as EmailIcon,
   Phone as PhoneIcon,
   Visibility as ViewIcon,
+  FileUpload as ImportIcon,
+  FileDownload as ExportIcon,
 } from '@mui/icons-material';
 import { DataTable, PageHeader, ConfirmDialog, ModalForm } from '../components';
 import { contactService } from '../services';
@@ -65,6 +68,7 @@ const ContactsPage: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+  const importInputRef = React.useRef<HTMLInputElement>(null);
 
   const fetchContacts = useCallback(async () => {
     setLoading(true);
@@ -136,6 +140,33 @@ const ContactsPage: React.FC = () => {
       enqueueSnackbar('Delete failed', { variant: 'error' });
     }
     setDeleteId(null);
+  };
+
+  const handleExport = async () => {
+    try {
+      const csv = await contactService.exportCsv();
+      const blob = new Blob([csv as any], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = 'contacts.csv'; a.click();
+      URL.revokeObjectURL(url);
+      enqueueSnackbar('Export complete', { variant: 'success' });
+    } catch {
+      enqueueSnackbar('Export failed', { variant: 'error' });
+    }
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const res = await contactService.importCsv(file);
+      enqueueSnackbar(`Imported ${(res.data as any)?.imported ?? 0} contacts`, { variant: 'success' });
+      fetchContacts();
+    } catch {
+      enqueueSnackbar('Import failed', { variant: 'error' });
+    }
+    if (importInputRef.current) importInputRef.current.value = '';
   };
 
   const handleChange = (field: string) => (e: any) =>
@@ -238,6 +269,13 @@ const ContactsPage: React.FC = () => {
         title="Contact Management"
         breadcrumbs={[{ label: 'Dashboard', to: '/dashboard' }, { label: 'Contacts' }]}
       />
+
+      {/* Import / Export bar */}
+      <Box sx={{ mb: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+        <Button variant="outlined" size="small" startIcon={<ImportIcon />} onClick={() => importInputRef.current?.click()}>Import CSV</Button>
+        <input type="file" accept=".csv" hidden ref={importInputRef} onChange={handleImport} />
+        <Button variant="outlined" size="small" startIcon={<ExportIcon />} onClick={handleExport}>Export CSV</Button>
+      </Box>
 
       <DataTable
         title="Contacts"

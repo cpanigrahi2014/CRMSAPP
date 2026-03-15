@@ -42,6 +42,8 @@
         <module>ai-service</module>
         <module>email-service</module>
         <module>integration-service</module>
+        <module>case-service</module>
+        <module>campaign-service</module>
     </modules>
 
     <dependencyManagement>

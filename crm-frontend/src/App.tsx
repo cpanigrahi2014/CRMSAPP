@@ -44,6 +44,7 @@ import SmartAutomationPage from './pages/SmartAutomationPage';
 import DeveloperPortalPage from './pages/DeveloperPortalPage';
 import ObjectManagerPage from './pages/ObjectManagerPage';
 import PricingPage from './pages/PricingPage';
+import ScreenCapturePage from './pages/ScreenCapturePage';
 import LandingPage from './pages/LandingPage';
 
 /* ---- Protected Route wrapper ---- */
@@ -114,6 +115,7 @@ const App: React.FC = () => {
         <Route path="developer" element={<DeveloperPortalPage />} />
         <Route path="object-manager" element={<ObjectManagerPage />} />
         <Route path="pricing" element={<PricingPage />} />
+        <Route path="screen-capture" element={<ScreenCapturePage />} />
       </Route>
 
       {/* ---- Catch-all ---- */}

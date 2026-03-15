@@ -108,10 +108,13 @@ export const accountService = {
     api.put<ApiResponse<Account>>(`/api/v1/accounts/${accountId}/engagement-score`, { engagementScore }).then((r) => r.data),
 
   // ── Import / Export ──────────────────────────────────────
-  importCsv: (csvContent: string) =>
-    api.post<ApiResponse<{ imported: number }>>('/api/v1/accounts/import', csvContent, {
-      headers: { 'Content-Type': 'text/plain' },
-    }).then((r) => r.data),
+  importCsv: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post<ApiResponse<{ imported: number }>>('/api/v1/accounts/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then((r) => r.data);
+  },
 
   exportCsv: () =>
     api.get<string>('/api/v1/accounts/export', { responseType: 'text' as any }).then((r) => r.data),

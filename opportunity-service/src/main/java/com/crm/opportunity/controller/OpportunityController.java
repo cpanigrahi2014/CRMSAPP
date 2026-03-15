@@ -12,10 +12,12 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.LocalDate;
 import java.util.List;
@@ -144,8 +146,9 @@ public class OpportunityController {
             @PathVariable UUID opportunityId,
             @RequestParam Opportunity.OpportunityStage stage,
             @RequestParam(required = false) String lostReason,
+            @RequestParam(required = false) String competitor,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(ApiResponse.success(opportunityService.updateStage(opportunityId, stage, lostReason, principal.getUserId()), "Stage updated"));
+        return ResponseEntity.ok(ApiResponse.success(opportunityService.updateStage(opportunityId, stage, lostReason, competitor, principal.getUserId()), "Stage updated"));
     }
 
     // ─── Close Date Prediction ───────────────────────────────────────
@@ -418,5 +421,27 @@ public class OpportunityController {
     @Operation(summary = "Get pipeline view grouped by stage")
     public ResponseEntity<ApiResponse<Map<String, List<OpportunityResponse>>>> getPipelineView() {
         return ResponseEntity.ok(ApiResponse.success(opportunityService.getPipelineView()));
+    }
+
+    // ─── Import / Export ───────────────────────────────────────
+    @PostMapping("/import")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @Operation(summary = "Import opportunities from CSV file")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> importOpportunities(
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(ApiResponse.success(
+                opportunityService.importOpportunitiesFromFile(file, principal.getUserId()), "Import completed"));
+    }
+
+    @GetMapping("/export")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @Operation(summary = "Export opportunities to CSV")
+    public ResponseEntity<byte[]> exportOpportunities() {
+        String csv = opportunityService.exportOpportunitiesToCsv();
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=opportunities.csv")
+                .contentType(MediaType.parseMediaType("text/csv"))
+                .body(csv.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 }

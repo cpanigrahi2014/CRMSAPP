@@ -26,6 +26,14 @@ public class EmailMessageController {
         return ResponseEntity.ok(service.send(p.getTenantId(), p.getUserId(), req));
     }
 
+    @PostMapping("/inbound")
+    public ResponseEntity<EmailMessageDto> receiveInbound(
+            @AuthenticationPrincipal UserPrincipal p,
+            @Valid @RequestBody com.crm.email.dto.InboundEmailRequest req) {
+        return ResponseEntity.status(201)
+                .body(service.receiveInbound(p.getTenantId(), p.getUserId(), req));
+    }
+
     @GetMapping
     public ResponseEntity<Page<EmailMessageDto>> list(
             @AuthenticationPrincipal UserPrincipal p,

@@ -77,4 +77,16 @@ export const contactService = {
   // ── Feature 10: Analytics ──
   getAnalytics: () =>
     api.get<ApiResponse<ContactAnalytics>>('/api/v1/contacts/analytics').then((r) => r.data),
+
+  // ── Import / Export ──
+  importCsv: (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    return api.post<ApiResponse<{ imported: number }>>('/api/v1/contacts/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then((r) => r.data);
+  },
+
+  exportCsv: () =>
+    api.get<string>('/api/v1/contacts/export', { responseType: 'text' as any }).then((r) => r.data),
 };

@@ -13,9 +13,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @RestController
@@ -233,5 +236,27 @@ public class ContactController {
     @Operation(summary = "Get contact analytics")
     public ResponseEntity<ApiResponse<ContactAnalyticsResponse>> getAnalytics() {
         return ResponseEntity.ok(ApiResponse.success(contactService.getAnalytics()));
+    }
+
+    // ── Import / Export ──────────────────────────────────────
+    @PostMapping("/import")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @Operation(summary = "Import contacts from CSV file")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> importContacts(
+            @RequestParam("file") MultipartFile file,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(ApiResponse.success(
+                contactService.importContactsFromFile(file, principal.getUserId()), "Import completed"));
+    }
+
+    @GetMapping("/export")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @Operation(summary = "Export contacts to CSV")
+    public ResponseEntity<byte[]> exportContacts() {
+        String csv = contactService.exportContactsToCsv();
+        return ResponseEntity.ok()
+                .header("Content-Disposition", "attachment; filename=contacts.csv")
+                .contentType(MediaType.parseMediaType("text/csv"))
+                .body(csv.getBytes(java.nio.charset.StandardCharsets.UTF_8));
     }
 }

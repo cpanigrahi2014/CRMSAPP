@@ -1,6 +1,7 @@
 package com.crm.notification.service;
 
 import com.crm.common.dto.PagedResponse;
+import com.crm.common.event.EventPublisher;
 import com.crm.common.exception.ResourceNotFoundException;
 import com.crm.common.security.TenantContext;
 import com.crm.notification.dto.SendWhatsAppRequest;
@@ -27,6 +28,7 @@ public class WhatsAppService {
 
     private final WhatsAppMessageRepository whatsAppMessageRepository;
     private final UnifiedMessageRepository unifiedMessageRepository;
+    private final EventPublisher eventPublisher;
 
     @Transactional
     public WhatsAppMessageResponse send(SendWhatsAppRequest request) {
@@ -75,6 +77,12 @@ public class WhatsAppService {
 
         WhatsAppMessage saved = whatsAppMessageRepository.save(msg);
         indexUnifiedMessage(saved, tenantId);
+
+        // Publish event so lead-service can auto-create a lead from this inbound message
+        eventPublisher.publish("notification-events", tenantId, "system", "WhatsApp",
+                saved.getId().toString(), "WHATSAPP_INBOUND",
+                java.util.Map.of("fromNumber", fromNumber, "body", body != null ? body : ""));
+
         return toResponse(saved);
     }
 

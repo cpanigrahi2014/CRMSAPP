@@ -17,6 +17,8 @@ public interface ContactRepository extends JpaRepository<Contact, UUID> {
 
     Page<Contact> findByTenantIdAndDeletedFalse(String tenantId, Pageable pageable);
 
+    List<Contact> findByTenantIdAndDeletedFalse(String tenantId);
+
     Optional<Contact> findByIdAndTenantIdAndDeletedFalse(UUID id, String tenantId);
 
     Page<Contact> findByAccountIdAndTenantIdAndDeletedFalse(UUID accountId, String tenantId, Pageable pageable);

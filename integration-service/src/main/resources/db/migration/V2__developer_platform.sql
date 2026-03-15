@@ -53,11 +53,12 @@ CREATE TABLE IF NOT EXISTS marketplace_plugins (
     pricing VARCHAR(20) NOT NULL DEFAULT 'FREE', -- FREE, PAID, FREEMIUM
     price_amount NUMERIC(10,2),
     install_count BIGINT DEFAULT 0,
-    rating NUMERIC(3,2) DEFAULT 0,
+    rating DOUBLE PRECISION DEFAULT 0,
     rating_count INTEGER DEFAULT 0,
     required_scopes TEXT, -- JSON array
     config_schema TEXT, -- JSON schema for plugin config
     is_verified BOOLEAN DEFAULT false,
+    tenant_id VARCHAR(100),
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP DEFAULT NOW()
 );

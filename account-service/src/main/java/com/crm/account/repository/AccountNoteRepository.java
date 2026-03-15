@@ -18,4 +18,6 @@ public interface AccountNoteRepository extends JpaRepository<AccountNote, UUID> 
     Page<AccountNote> findByAccountIdAndTenantIdAndDeletedFalse(UUID accountId, String tenantId, Pageable pageable);
 
     Optional<AccountNote> findByIdAndTenantIdAndDeletedFalse(UUID id, String tenantId);
+
+    List<AccountNote> findByAccountIdAndDeletedFalse(UUID accountId);
 }

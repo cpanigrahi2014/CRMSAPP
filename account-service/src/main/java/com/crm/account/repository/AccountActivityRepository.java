@@ -17,4 +17,6 @@ public interface AccountActivityRepository extends JpaRepository<AccountActivity
     Page<AccountActivity> findByAccountIdAndTenantIdAndDeletedFalse(UUID accountId, String tenantId, Pageable pageable);
 
     List<AccountActivity> findByAccountIdAndTypeAndTenantIdAndDeletedFalse(UUID accountId, String type, String tenantId);
+
+    List<AccountActivity> findByAccountIdAndDeletedFalse(UUID accountId);
 }

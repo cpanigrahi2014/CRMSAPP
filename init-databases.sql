@@ -11,3 +11,5 @@ CREATE DATABASE crm_ai;
 CREATE DATABASE crm_email;
 CREATE DATABASE crm_integrations;
 CREATE DATABASE crm_ai_agent;
+CREATE DATABASE crm_cases;
+CREATE DATABASE crm_campaigns;

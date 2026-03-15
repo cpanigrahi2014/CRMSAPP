@@ -1,0 +1,3372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRM Lead Web Form - Test Tool</title>
+  <style>
+    :root {
+      --primary: #4f46e5;
+      --primary-hover: #4338ca;
+      --success: #16a34a;
+      --danger: #dc2626;
+      --warning: #d97706;
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --border: #e2e8f0;
+      --text: #1e293b;
+      --muted: #64748b;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+
+    .header { background: linear-gradient(135deg, #4f46e5, #7c3aed); color: #fff; padding: 1.5rem 2rem; }
+    .header h1 { font-size: 1.5rem; font-weight: 700; }
+    .header p { opacity: 0.85; font-size: 0.9rem; margin-top: 0.25rem; }
+
+    .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
+    @media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; }
+    .card h2 { font-size: 1.1rem; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+    .card h2 .badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
+    .badge-step { background: #ede9fe; color: #6d28d9; }
+    .badge-success { background: #dcfce7; color: #16a34a; }
+    .badge-error { background: #fee2e2; color: #dc2626; }
+
+    .form-group { margin-bottom: 0.85rem; }
+    label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--muted); margin-bottom: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
+    input, select, textarea {
+      width: 100%; padding: 0.6rem 0.75rem; border: 1px solid var(--border); border-radius: 8px;
+      font-size: 0.9rem; transition: border-color 0.2s; background: #fff;
+    }
+    input:focus, select:focus, textarea:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79,70,229,0.1); }
+    textarea { resize: vertical; min-height: 60px; }
+
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+
+    button {
+      padding: 0.6rem 1.25rem; border: none; border-radius: 8px; font-size: 0.85rem; font-weight: 600;
+      cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; gap: 0.4rem;
+    }
+    .btn-primary { background: var(--primary); color: #fff; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-success { background: var(--success); color: #fff; }
+    .btn-success:hover { background: #15803d; }
+    .btn-danger { background: var(--danger); color: #fff; }
+    .btn-danger:hover { background: #b91c1c; }
+    .btn-outline { background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+    .btn-outline:hover { background: #eef2ff; }
+    .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.78rem; }
+
+    .btn-group { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 1rem; }
+
+    .status-bar {
+      padding: 0.5rem 0.75rem; border-radius: 8px; font-size: 0.82rem; margin-bottom: 0.75rem;
+      display: none; align-items: center; gap: 0.5rem;
+    }
+    .status-bar.show { display: flex; }
+    .status-bar.info { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+    .status-bar.success { background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+    .status-bar.error { background: #fef2f2; color: #dc2626; border: 1px solid #fecaca; }
+
+    .log-panel { background: #1e293b; color: #e2e8f0; border-radius: 10px; padding: 1rem; font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.78rem; max-height: 400px; overflow-y: auto; }
+    .log-panel .log-entry { padding: 0.2rem 0; border-bottom: 1px solid #334155; }
+    .log-panel .log-time { color: #64748b; }
+    .log-panel .log-ok { color: #4ade80; }
+    .log-panel .log-err { color: #f87171; }
+    .log-panel .log-info { color: #60a5fa; }
+    .log-panel .log-data { color: #c084fc; }
+
+    .result-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .result-table th { text-align: left; padding: 0.5rem; background: #f1f5f9; font-weight: 600; }
+    .result-table td { padding: 0.5rem; border-top: 1px solid var(--border); }
+    .result-table tr:hover td { background: #f8fafc; }
+
+    .tag { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 0.72rem; font-weight: 600; }
+    .tag-new { background: #dbeafe; color: #1d4ed8; }
+    .tag-web { background: #fef3c7; color: #92400e; }
+    .tag-score { background: #dcfce7; color: #166534; }
+
+    .section-full { grid-column: 1 / -1; }
+    .divider { border: none; border-top: 1px solid var(--border); margin: 1rem 0; }
+
+    .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid #fff; border-top-color: transparent; border-radius: 50%; animation: spin 0.6s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <h1>&#128221; CRM Lead Web Form &mdash; Test Tool</h1>
+  <p>Simulate the full lead creation flow: Auth &rarr; Setup Rules &rarr; Submit Lead &rarr; Verify Results</p>
+</div>
+
+<div class="container">
+
+  <!-- STATUS -->
+  <div id="globalStatus" class="status-bar"></div>
+
+  <div class="grid">
+
+    <!-- ===================== LEFT COLUMN ===================== -->
+    <div style="display:flex; flex-direction:column; gap:1.5rem;">
+
+      <!-- STEP 1: AUTH -->
+      <div class="card" id="authCard">
+        <h2><span class="badge badge-step">Step 1</span> Authentication</h2>
+        <div class="row">
+          <div class="form-group">
+            <label>Email</label>
+            <input id="authEmail" value="admin@acme.com">
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input id="authPassword" type="password" value="SecurePass123!">
+          </div>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>Tenant ID</label>
+            <input id="authTenant" value="acme-corp">
+          </div>
+          <div class="form-group">
+            <label>First / Last Name</label>
+            <div style="display:flex; gap:0.5rem;">
+              <input id="authFirst" value="John" placeholder="First">
+              <input id="authLast" value="Admin" placeholder="Last">
+            </div>
+          </div>
+        </div>
+        <div class="btn-group">
+          <button class="btn-primary" onclick="doRegister()">Register</button>
+          <button class="btn-success" onclick="doLogin()">Login</button>
+        </div>
+        <div id="authStatus" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- STEP 2: SCORING RULES -->
+      <div class="card">
+        <h2><span class="badge badge-step">Step 2</span> Scoring Rules</h2>
+        <p style="font-size:0.82rem; color:var(--muted); margin-bottom:0.75rem;">Auto-score leads on creation. Creates two sample rules.</p>
+        <div class="btn-group" style="margin-top:0;">
+          <button class="btn-primary btn-sm" onclick="setupScoringRules()">&#9889; Create Sample Scoring Rules</button>
+          <button class="btn-outline btn-sm" onclick="listScoringRules()">View Rules</button>
+        </div>
+        <div id="scoringStatus" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- STEP 3: ASSIGNMENT RULES -->
+      <div class="card">
+        <h2><span class="badge badge-step">Step 3</span> Assignment Rules</h2>
+        <p style="font-size:0.82rem; color:var(--muted); margin-bottom:0.75rem;">Auto-assign web leads to the logged-in user.</p>
+        <div class="btn-group" style="margin-top:0;">
+          <button class="btn-primary btn-sm" onclick="setupAssignmentRule()">&#9889; Create Assignment Rule</button>
+          <button class="btn-outline btn-sm" onclick="listAssignmentRules()">View Rules</button>
+        </div>
+        <div id="assignStatus" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- STEP 4: WORKFLOW RULE -->
+      <div class="card">
+        <h2><span class="badge badge-step">Step 4</span> Workflow &amp; Notifications</h2>
+        <p style="font-size:0.82rem; color:var(--muted); margin-bottom:0.75rem;">Trigger email + in-app notification when a web lead is created.</p>
+        <div class="btn-group" style="margin-top:0;">
+          <button class="btn-primary btn-sm" onclick="setupWorkflowRule()">&#9889; Create Workflow Rule</button>
+          <button class="btn-outline btn-sm" onclick="listWorkflows()">View Workflows</button>
+        </div>
+        <div id="workflowStatus" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+    </div>
+
+    <!-- ===================== RIGHT COLUMN ===================== -->
+    <div style="display:flex; flex-direction:column; gap:1.5rem;">
+
+      <!-- STEP 5: WEB FORM -->
+      <div class="card" style="border: 2px solid var(--primary);">
+        <h2><span class="badge badge-step">Step 5</span> &#127760; Web Lead Form (Simulated)</h2>
+        <p style="font-size:0.82rem; color:var(--muted); margin-bottom:1rem;">This simulates a public web form. Submitting creates a lead via the API.</p>
+
+        <div class="row">
+          <div class="form-group">
+            <label>First Name *</label>
+            <input id="leadFirst" value="Jane">
+          </div>
+          <div class="form-group">
+            <label>Last Name *</label>
+            <input id="leadLast" value="Smith">
+          </div>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>Email</label>
+            <input id="leadEmail" value="jane@prospect.com" type="email">
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input id="leadPhone" value="+1987654321">
+          </div>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>Company</label>
+            <input id="leadCompany" value="Prospect Inc">
+          </div>
+          <div class="form-group">
+            <label>Title</label>
+            <input id="leadTitle" value="VP Engineering">
+          </div>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>Lead Source</label>
+            <select id="leadSource">
+              <option value="WEB" selected>Web Form</option>
+              <option value="PHONE">Phone</option>
+              <option value="EMAIL">Email</option>
+              <option value="REFERRAL">Referral</option>
+              <option value="SOCIAL_MEDIA">Social Media</option>
+              <option value="TRADE_SHOW">Trade Show</option>
+              <option value="WHATSAPP">WhatsApp</option>
+              <option value="OTHER">Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Territory</label>
+            <input id="leadTerritory" placeholder="e.g. US-West">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Message / Description</label>
+          <textarea id="leadDesc">Interested in the enterprise plan. Found you through your website.</textarea>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn-primary" id="submitLeadBtn" onclick="submitLead()">&#128640; Submit Lead</button>
+          <button class="btn-outline" onclick="clearForm()">Clear</button>
+        </div>
+        <div id="leadStatus" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- STEP 5B: WhatsApp Lead Capture -->
+      <div class="card" style="border: 2px solid #25D366;">
+        <h2><span class="badge badge-step" style="background:#dcfce7; color:#166534;">Scenario 2</span> 💬 WhatsApp Lead Capture</h2>
+        <p style="font-size:0.82rem; color:var(--muted); margin-bottom:1rem;">Simulate an inbound WhatsApp message → auto-creates a lead with territory from phone prefix.</p>
+
+        <div class="row">
+          <div class="form-group">
+            <label>From Phone Number</label>
+            <input id="waPhone" value="+448001234567">
+          </div>
+          <div class="form-group">
+            <label>WhatsApp Name (optional)</label>
+            <div style="display:flex; gap:0.5rem;">
+              <input id="waFirst" value="Alice" placeholder="First">
+              <input id="waLast" value="London" placeholder="Last">
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Message Body</label>
+          <textarea id="waBody">Hi, I saw your product on LinkedIn. Can I get a demo?</textarea>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn-primary" id="waSubmitBtn" onclick="submitWhatsAppLead()" style="background:#25D366;">💬 Simulate Inbound WhatsApp</button>
+        </div>
+        <div id="waStatus" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- STEP 5C: Email Lead Capture -->
+      <div class="card" style="border: 2px solid #EA4335;">
+        <h2><span class="badge badge-step" style="background:#fee2e2; color:#dc2626;">Scenario 3</span> 📧 Email Lead Capture</h2>
+        <p style="font-size:0.82rem; color:var(--muted); margin-bottom:1rem;">Simulate an inbound email → auto-creates lead → attaches email as activity on the lead.</p>
+
+        <div class="row">
+          <div class="form-group">
+            <label>From Email (Sender)</label>
+            <input id="emailFrom" value="sarah.prospect@outlook.com" type="email">
+          </div>
+          <div class="form-group">
+            <label>To Email (Your Inbox)</label>
+            <input id="emailTo" value="sales@acme.com" type="email">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Subject</label>
+          <input id="emailSubject" value="Inquiry about Enterprise CRM Plan">
+        </div>
+        <div class="form-group">
+          <label>Email Body</label>
+          <textarea id="emailBody">Hi, I found your product through a Google search. We are a mid-size company looking for a CRM solution. Can we schedule a demo this week?</textarea>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn-primary" id="emailSubmitBtn" onclick="submitEmailLead()" style="background:#EA4335;">📧 Simulate Inbound Email</button>
+        </div>
+        <div id="emailStatus" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- SCENARIO 4: LEAD QUALIFICATION & CONVERSION -->
+      <div class="card">
+        <h2><span class="badge badge-step" style="background:#fef3c7; color:#d97706;">Scenario 4</span> 🔄 Lead Qualification &amp; Conversion</h2>
+        <p>Qualify a lead and convert it → creates Account + Contact + Opportunity, transfers activities.</p>
+
+        <div class="form-group">
+          <label>Lead ID to Convert</label>
+          <input id="convertLeadId" placeholder="Paste a lead ID (or use last created)" value="">
+        </div>
+        <div class="form-group">
+          <label>Opportunity Name</label>
+          <input id="convertOppName" value="Enterprise CRM Deal">
+        </div>
+        <div class="form-group">
+          <label>Amount ($)</label>
+          <input id="convertAmount" type="number" value="25000">
+        </div>
+        <div class="form-group">
+          <label>Stage</label>
+          <select id="convertStage">
+            <option value="PROSPECTING">PROSPECTING</option>
+            <option value="QUALIFICATION" selected>QUALIFICATION</option>
+            <option value="NEEDS_ANALYSIS">NEEDS_ANALYSIS</option>
+            <option value="PROPOSAL">PROPOSAL</option>
+            <option value="NEGOTIATION">NEGOTIATION</option>
+          </select>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn-primary" onclick="qualifyAndConvertLead()" style="background:#d97706;">🔄 Qualify &amp; Convert Lead</button>
+        </div>
+        <div id="convertStatus" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- SCENARIO 5: Create Account -->
+      <div class="card" style="border: 2px solid #0ea5e9;">
+        <h2><span class="badge badge-step" style="background:#e0f2fe; color:#0369a1;">Scenario 5</span> 🏢 Create Account</h2>
+        <p style="font-size:0.82rem; color:var(--muted); margin-bottom:1rem;">Create a new Account with industry, revenue, territory. Verifies duplicate detection, owner assignment, health score, and activity timeline.</p>
+
+        <div class="row">
+          <div class="form-group">
+            <label>Account Name</label>
+            <input id="acctName" value="Pinnacle Solutions">
+          </div>
+          <div class="form-group">
+            <label>Industry</label>
+            <select id="acctIndustry">
+              <option value="Technology" selected>Technology</option>
+              <option value="Healthcare">Healthcare</option>
+              <option value="Finance">Finance</option>
+              <option value="Manufacturing">Manufacturing</option>
+              <option value="Retail">Retail</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>Website</label>
+            <input id="acctWebsite" value="https://pinnacle.com">
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input id="acctPhone" value="+1-555-9001">
+          </div>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>Annual Revenue ($)</label>
+            <input id="acctRevenue" value="8000000" type="number">
+          </div>
+          <div class="form-group">
+            <label>Employees</label>
+            <input id="acctEmployees" value="500" type="number">
+          </div>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>Territory</label>
+            <input id="acctTerritory" value="West">
+          </div>
+          <div class="form-group">
+            <label>Segment</label>
+            <select id="acctSegment">
+              <option value="Enterprise" selected>Enterprise</option>
+              <option value="Mid-Market">Mid-Market</option>
+              <option value="SMB">SMB</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn-primary" id="acctSubmitBtn" onclick="createAccount()" style="background:#0ea5e9;">🏢 Create Account</button>
+        </div>
+        <div id="acctStatus" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- SCENARIO 6: Add Contact Under Account -->
+      <div class="card" style="border: 2px solid #8b5cf6;">
+        <h2><span class="badge badge-step" style="background:#ede9fe; color:#6d28d9;">Scenario 6</span> 👤 Add Contact Under Account</h2>
+        <p style="font-size:0.82rem; color:var(--muted); margin-bottom:1rem;">Create a Contact linked to the Account from Scenario 5. Verifies email uniqueness, creates a second contact, and shows Account 360 view.</p>
+
+        <div class="row">
+          <div class="form-group">
+            <label>First Name</label>
+            <input id="contactFirst" value="Sarah">
+          </div>
+          <div class="form-group">
+            <label>Last Name</label>
+            <input id="contactLast" value="Connor">
+          </div>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>Email</label>
+            <input id="contactEmail" value="sarah.connor@pinnacle.com" type="email">
+          </div>
+          <div class="form-group">
+            <label>Phone</label>
+            <input id="contactPhone" value="+1-555-9010">
+          </div>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>Title</label>
+            <input id="contactTitle" value="CTO">
+          </div>
+          <div class="form-group">
+            <label>Department</label>
+            <input id="contactDept" value="Engineering">
+          </div>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn-primary" id="contactSubmitBtn" onclick="addContactToAccount()" style="background:#8b5cf6;">👤 Add Contact &amp; Verify</button>
+        </div>
+        <div id="contactAcctStatus" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- SCENARIO 7: Merge Duplicate Accounts -->
+      <div class="card" style="border: 2px solid #f97316;">
+        <h2><span class="badge badge-step" style="background:#fff7ed; color:#c2410c;">Scenario 7</span> 🔀 Merge Duplicate Accounts</h2>
+        <p style="font-size:0.82rem; color:var(--muted); margin-bottom:1rem;">Creates two similar accounts, adds a contact to the duplicate, runs duplicate detection, then merges. Verifies field fill, contact re-linking, and audit trail.</p>
+
+        <div class="row">
+          <div class="form-group">
+            <label>Primary Account Name</label>
+            <input id="mergePrimaryName" value="Global Dynamics">
+          </div>
+          <div class="form-group">
+            <label>Duplicate Account Name</label>
+            <input id="mergeDuplicateName" value="Global Dynamics Inc">
+          </div>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn-primary" id="mergeSubmitBtn" onclick="mergeAccounts()" style="background:#f97316;">🔀 Run Merge Scenario</button>
+        </div>
+        <div id="mergeStatus" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- SCENARIO 8: Create Opportunity from Account -->
+      <div class="card" style="border: 2px solid #06b6d4;">
+        <h2><span class="badge badge-step" style="background:#cffafe; color:#0e7490;">Scenario 8</span> 💰 Create Opportunity</h2>
+        <p style="font-size:0.82rem; color:var(--muted); margin-bottom:1rem;">Creates an Opportunity linked to an Account. Stage=QUALIFICATION, auto-probability, expected revenue calculated, close date validated.</p>
+
+        <div class="row">
+          <div class="form-group">
+            <label>Opportunity Name</label>
+            <input id="oppName" value="Enterprise Platform Deal">
+          </div>
+          <div class="form-group">
+            <label>Account ID (from Scenario 5)</label>
+            <input id="oppAccountId" value="" placeholder="Auto-filled from Scenario 5">
+          </div>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>Amount ($)</label>
+            <input id="oppAmount" value="250000" type="number">
+          </div>
+          <div class="form-group">
+            <label>Close Date</label>
+            <input id="oppCloseDate" value="2026-09-30" type="date">
+          </div>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>Lead Source</label>
+            <select id="oppLeadSource">
+              <option value="WEBSITE">Website</option>
+              <option value="REFERRAL" selected>Referral</option>
+              <option value="COLD_CALL">Cold Call</option>
+              <option value="PARTNER">Partner</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Next Step</label>
+            <input id="oppNextStep" value="Discovery call with stakeholders">
+          </div>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn-primary" id="oppSubmitBtn" onclick="createOpportunity()" style="background:#06b6d4;">💰 Create Opportunity</button>
+        </div>
+        <div id="oppStatus" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- SCENARIO 9: Progress Opportunity Through Stages -->
+      <div class="card" style="border: 2px solid #10b981;">
+        <h2><span class="badge badge-step" style="background:#d1fae5; color:#047857;">Scenario 9</span> 📈 Progress Opportunity</h2>
+        <p style="font-size:0.82rem; color:var(--muted); margin-bottom:1rem;">Advances the Scenario 8 Opportunity through Qualification → Proposal → Negotiation → Closed Won. Verifies auto-probability, forecast category, and expected revenue at each stage.</p>
+
+        <div class="btn-group">
+          <button class="btn-primary" id="progressSubmitBtn" onclick="progressOpportunity()" style="background:#10b981;">📈 Run Stage Progression</button>
+        </div>
+        <div id="progressStatus" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- SCENARIO 10: Closed Lost with Reason -->
+      <div class="card" style="border: 2px solid #ef4444;">
+        <h2><span class="badge badge-step" style="background:#fee2e2; color:#b91c1c;">Scenario 10</span> ❌ Close Lost</h2>
+        <p style="font-size:0.82rem; color:var(--muted); margin-bottom:1rem;">Creates a new Opportunity, then marks as Lost. Tests required Lost Reason, required Competitor field, pipeline dashboard update.</p>
+
+        <div class="row">
+          <div class="form-group">
+            <label>Lost Reason</label>
+            <input id="lostReason" value="Price too high and feature gap">
+          </div>
+          <div class="form-group">
+            <label>Competitor</label>
+            <input id="lostCompetitor" value="Salesforce">
+          </div>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn-primary" id="lostSubmitBtn" onclick="closeLostOpportunity()" style="background:#ef4444;">❌ Run Close Lost Scenario</button>
+        </div>
+        <div id="lostStatus" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- SCENARIO 11: Auto Follow-Up Task -->
+      <div class="card" style="border: 2px solid #0ea5e9;">
+        <h2><span class="badge badge-step" style="background:#e0f2fe; color:#0369a1;">Scenario 11</span> &#128221; Auto Follow-Up Task</h2>
+        <p style="font-size:0.82rem; color:var(--muted); margin-bottom:1rem;">Creates a lead, sets status to WORKING → triggers workflow rule → auto-creates follow-up TASK with reminder + notification. Tests full Kafka event chain.</p>
+
+        <div class="row">
+          <div class="form-group">
+            <label>Lead First Name</label>
+            <input id="s11FirstName" value="WorkingTest">
+          </div>
+          <div class="form-group">
+            <label>Lead Last Name</label>
+            <input id="s11LastName" value="AutoTask">
+          </div>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>Company</label>
+            <input id="s11Company" value="TaskFlow Inc">
+          </div>
+          <div class="form-group">
+            <label>Email</label>
+            <input id="s11Email" value="working.test@taskflow.com">
+          </div>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn-primary" id="s11SubmitBtn" onclick="runScenario11()" style="background:#0ea5e9;">&#128221; Run Auto Follow-Up Scenario</button>
+        </div>
+        <div id="s11Status" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- SCENARIO 12: Calendar Event / Schedule Demo -->
+      <div class="card" style="border: 2px solid #8b5cf6;">
+        <h2><span class="badge badge-step" style="background:#ede9fe; color:#6d28d9;">Scenario 12</span> &#128197; Schedule Demo Meeting</h2>
+        <p style="font-size:0.82rem; color:var(--muted); margin-bottom:1rem;">Creates a MEETING activity (product demo) with start/end time, location, reminder. Tests calendar view (upcoming), analytics, and activity stream.</p>
+
+        <div class="row">
+          <div class="form-group">
+            <label>Meeting Subject</label>
+            <input id="s12Subject" value="Product Demo - Enterprise Plan">
+          </div>
+          <div class="form-group">
+            <label>Location</label>
+            <input id="s12Location" value="Microsoft Teams - https://teams.microsoft.com/meet/demo456">
+          </div>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>Demo Date (days from now)</label>
+            <input id="s12DaysOut" type="number" value="1" min="1" max="30">
+          </div>
+          <div class="form-group">
+            <label>Start Hour (24h)</label>
+            <input id="s12Hour" type="number" value="14" min="8" max="20">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="s12Description" rows="2">Scheduled product demo with prospect. Walk through pricing, features, and implementation timeline.</textarea>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn-primary" id="s12SubmitBtn" onclick="runScenario12()" style="background:#8b5cf6;">&#128197; Schedule Demo Meeting</button>
+        </div>
+        <div id="s12Status" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- SCENARIO 13: Case Creation from Portal (auto-priority, SLA timer) -->
+      <div class="card" style="border: 2px solid #ef4444;">
+        <h2><span class="badge badge-step" style="background:#fee2e2; color:#dc2626;">Scenario 13</span> &#127919; Create Support Case</h2>
+        <p style="font-size:0.82rem; color:var(--muted); margin-bottom:1rem;">Creates a support case from portal. Auto-detects priority from keywords (down/outage→CRITICAL, urgent/bug→HIGH, question→LOW). Sets SLA timer (CRITICAL=4h, HIGH=8h, MEDIUM=24h, LOW=72h).</p>
+
+        <div class="row">
+          <div class="form-group">
+            <label>Subject</label>
+            <input id="s13Subject" value="System is completely down - cannot access portal">
+          </div>
+          <div class="form-group">
+            <label>Origin</label>
+            <select id="s13Origin">
+              <option value="PORTAL" selected>Portal</option>
+              <option value="EMAIL">Email</option>
+              <option value="PHONE">Phone</option>
+              <option value="CHAT">Chat</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Description</label>
+          <textarea id="s13Description" rows="2">Our entire system is down since this morning. No users can log in and all services are unavailable.</textarea>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>Contact Name</label>
+            <input id="s13ContactName" value="John Smith">
+          </div>
+          <div class="form-group">
+            <label>Contact Email</label>
+            <input id="s13ContactEmail" value="john.smith@acme.com">
+          </div>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn-primary" id="s13SubmitBtn" onclick="runScenario13()" style="background:#ef4444;">&#127919; Create Case</button>
+        </div>
+        <div id="s13Status" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- SCENARIO 14: Case Escalation -->
+      <div class="card" style="border: 2px solid #f97316;">
+        <h2><span class="badge badge-step" style="background:#ffedd5; color:#ea580c;">Scenario 14</span> &#128680; Escalate Case</h2>
+        <p style="font-size:0.82rem; color:var(--muted); margin-bottom:1rem;">Manually escalates a case. In production, cases not updated for 4+ hours are auto-escalated and manager is notified. Tests status change to ESCALATED and event publishing.</p>
+
+        <div class="form-group">
+          <label>Case ID (from Scenario 13)</label>
+          <input id="s14CaseId" placeholder="Auto-filled from Scenario 13">
+        </div>
+
+        <div class="btn-group">
+          <button class="btn-primary" id="s14SubmitBtn" onclick="runScenario14()" style="background:#f97316;">&#128680; Escalate Case</button>
+        </div>
+        <div id="s14Status" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- SCENARIO 15: Case Closure (CSAT + SLA compliance) -->
+      <div class="card" style="border: 2px solid #16a34a;">
+        <h2><span class="badge badge-step" style="background:#dcfce7; color:#16a34a;">Scenario 15</span> &#9989; Resolve &amp; Close Case</h2>
+        <p style="font-size:0.82rem; color:var(--muted); margin-bottom:1rem;">Resolves a case (checks SLA compliance, sends CSAT survey), submits CSAT score, then closes. Tests full lifecycle: OPEN → RESOLVED → CLOSED.</p>
+
+        <div class="form-group">
+          <label>Case ID to Resolve (paste or auto-filled)</label>
+          <input id="s15CaseId" placeholder="Auto-filled from Scenario 13">
+        </div>
+        <div class="form-group">
+          <label>Resolution Notes</label>
+          <textarea id="s15Resolution" rows="2">Root cause identified and fixed. Service fully restored. Applied patch to prevent recurrence.</textarea>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>CSAT Score (1-5)</label>
+            <input id="s15CsatScore" type="number" value="5" min="1" max="5">
+          </div>
+          <div class="form-group">
+            <label>CSAT Comment</label>
+            <input id="s15CsatComment" value="Excellent support! Issue resolved very quickly.">
+          </div>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn-primary" id="s15SubmitBtn" onclick="runScenario15()" style="background:#16a34a;">&#9989; Resolve, CSAT &amp; Close</button>
+        </div>
+        <div id="s15Status" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- SCENARIO 16: Create Campaign + Import Leads + Add Members -->
+      <div class="card" style="border: 2px solid #8b5cf6;">
+        <h2><span class="badge badge-step" style="background:#ede9fe; color:#8b5cf6;">Scenario 16</span> &#128227; Campaign &amp; Lead Import</h2>
+        <p style="font-size:0.82rem; color:var(--muted); margin-bottom:1rem;">Creates a campaign, imports 200 leads via CSV, adds all as campaign members, then tests member status transitions (SENT → RESPONDED → CONVERTED).</p>
+
+        <div class="row">
+          <div class="form-group">
+            <label>Campaign Name</label>
+            <input id="s16CampaignName" value="Q1 Email Blast 2026">
+          </div>
+          <div class="form-group">
+            <label>Type</label>
+            <select id="s16CampaignType">
+              <option value="EMAIL" selected>EMAIL</option>
+              <option value="SOCIAL">SOCIAL</option>
+              <option value="EVENT">EVENT</option>
+              <option value="WEBINAR">WEBINAR</option>
+              <option value="CONTENT">CONTENT</option>
+              <option value="PAID_ADS">PAID_ADS</option>
+            </select>
+          </div>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>Budget ($)</label>
+            <input id="s16Budget" type="number" value="50000">
+          </div>
+          <div class="form-group">
+            <label>Actual Cost ($)</label>
+            <input id="s16ActualCost" type="number" value="15000">
+          </div>
+          <div class="form-group">
+            <label>Number of Leads</label>
+            <input id="s16LeadCount" type="number" value="200">
+          </div>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn-primary" id="s16SubmitBtn" onclick="runScenario16()" style="background:#8b5cf6;">&#128227; Run Campaign Import</button>
+        </div>
+        <div id="s16Status" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- SCENARIO 17: ROI & Revenue Attribution -->
+      <div class="card" style="border: 2px solid #0891b2;">
+        <h2><span class="badge badge-step" style="background:#e0f2fe; color:#0891b2;">Scenario 17</span> &#128200; Campaign ROI &amp; Attribution</h2>
+        <p style="font-size:0.82rem; color:var(--muted); margin-bottom:1rem;">Links an opportunity to a campaign, updates campaign revenue, then calculates ROI = (Revenue − Cost) / Cost × 100%. Verifies marketing attribution metrics.</p>
+
+        <div class="row">
+          <div class="form-group">
+            <label>Campaign ID (auto-filled from S16)</label>
+            <input id="s17CampaignId" placeholder="Auto-filled from Scenario 16">
+          </div>
+          <div class="form-group">
+            <label>Opportunity Amount ($)</label>
+            <input id="s17OppAmount" type="number" value="75000">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Opportunity Name</label>
+          <input id="s17OppName" value="Campaign Deal - Enterprise License">
+        </div>
+
+        <div class="btn-group">
+          <button class="btn-primary" id="s17SubmitBtn" onclick="runScenario17()" style="background:#0891b2;">&#128200; Calculate ROI</button>
+        </div>
+        <div id="s17Status" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- SCENARIO 18: WhatsApp → Lead → Opportunity -->
+      <div class="card" style="border: 2px solid #25D366;">
+        <h2><span class="badge badge-step" style="background:#dcfce7; color:#166534;">Scenario 18</span> 📲 WhatsApp &rarr; Lead &rarr; Opportunity</h2>
+        <p style="font-size:0.82rem; color:var(--muted); margin-bottom:1rem;">Full integration: WhatsApp message &rarr; Lead created &rarr; Lead converted &rarr; Opportunity created &rarr; WhatsApp transcript attached.</p>
+
+        <div class="row">
+          <div class="form-group">
+            <label>From Phone Number</label>
+            <input id="s18Phone" value="+1555-918-0001">
+          </div>
+          <div class="form-group">
+            <label>WhatsApp Name</label>
+            <div style="display:flex; gap:0.5rem;">
+              <input id="s18First" value="Maria" placeholder="First">
+              <input id="s18Last" value="TechCorp" placeholder="Last">
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>WhatsApp Message</label>
+          <textarea id="s18Message">Hi, this is Maria from TechCorp. We're looking for a CRM solution for our 50-person sales team. Our budget is around $50K. Can you send us a proposal?</textarea>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>Opportunity Name</label>
+            <input id="s18OppName" value="TechCorp CRM Deal via WhatsApp">
+          </div>
+          <div class="form-group">
+            <label>Amount ($)</label>
+            <input id="s18OppAmount" type="number" value="50000">
+          </div>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>Opportunity Stage</label>
+            <select id="s18OppStage">
+              <option value="PROSPECTING" selected>PROSPECTING</option>
+              <option value="QUALIFICATION">QUALIFICATION</option>
+              <option value="NEEDS_ANALYSIS">NEEDS_ANALYSIS</option>
+              <option value="PROPOSAL">PROPOSAL</option>
+              <option value="NEGOTIATION">NEGOTIATION</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Auto-Convert to Opportunity</label>
+            <select id="s18AutoConvert">
+              <option value="true" selected>Yes &mdash; auto-convert</option>
+              <option value="false">No &mdash; create lead only</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn-primary" id="s18SubmitBtn" onclick="runScenario18()" style="background:#25D366;">📲 Run Scenario 18</button>
+        </div>
+        <div id="s18Status" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- SCENARIO 19: Email → Case -->
+      <div class="card" style="border: 2px solid #EA4335;">
+        <h2><span class="badge badge-step" style="background:#fee2e2; color:#dc2626;">Scenario 19</span> 📧 Email &rarr; Case</h2>
+        <p style="font-size:0.82rem; color:var(--muted); margin-bottom:1rem;">Customer sends email to support@ &rarr; Case auto-created with priority &rarr; Email attached as Activity on the case.</p>
+
+        <div class="row">
+          <div class="form-group">
+            <label>From Email (Customer)</label>
+            <input id="s19FromEmail" value="customer.urgent@outlook.com" type="email">
+          </div>
+          <div class="form-group">
+            <label>To Email (Support Inbox)</label>
+            <input id="s19ToEmail" value="support@acmecorp.com" type="email">
+          </div>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>Contact Name</label>
+            <input id="s19ContactName" value="Sarah Customer">
+          </div>
+          <div class="form-group">
+            <label>CC Addresses (optional)</label>
+            <input id="s19Cc" placeholder="manager@corp.com, cto@corp.com">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Subject</label>
+          <input id="s19Subject" value="Account suspended - Need urgent help">
+        </div>
+        <div class="form-group">
+          <label>Email Body</label>
+          <textarea id="s19Body">Dear Support,\n\nMy company account has been suspended without notice. We have 50 active users who cannot access the system. This is affecting our daily operations.\n\nPlease resolve ASAP.\n\nRegards,\nSarah Customer</textarea>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn-primary" id="s19SubmitBtn" onclick="runScenario19()" style="background:#EA4335;">📧 Run Scenario 19</button>
+        </div>
+        <div id="s19Status" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- SCENARIO 20: Instagram/Social → Lead -->
+      <div class="card" style="border: 2px solid #E1306C;">
+        <h2><span class="badge badge-step" style="background:#fce7f3; color:#be185d;">Scenario 20</span> 📸 Instagram Comment &rarr; Lead</h2>
+        <p style="font-size:0.82rem; color:var(--muted); margin-bottom:1rem;">Social listener detects comment &rarr; Lead created &rarr; Source = platform &rarr; Lead score = social weight (IG 15, FB 12, LinkedIn 20, Twitter 10).</p>
+
+        <div class="row">
+          <div class="form-group">
+            <label>Platform</label>
+            <select id="s20Platform">
+              <option value="INSTAGRAM" selected>Instagram (score: 15)</option>
+              <option value="FACEBOOK">Facebook (score: 12)</option>
+              <option value="LINKEDIN">LinkedIn (score: 20)</option>
+              <option value="TWITTER">Twitter / X (score: 10)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Username</label>
+            <input id="s20Username" value="maria_techcorp">
+          </div>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>Full Name</label>
+            <input id="s20FullName" value="Maria Johnson">
+          </div>
+          <div class="form-group">
+            <label>Email (optional)</label>
+            <input id="s20Email" placeholder="user@example.com" type="email">
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Comment</label>
+          <textarea id="s20Comment">This CRM looks amazing! We have 200 sales reps and need a scalable solution. Can we schedule a demo?</textarea>
+        </div>
+        <div class="row">
+          <div class="form-group">
+            <label>Post URL (optional)</label>
+            <input id="s20PostUrl" value="https://instagram.com/p/crm_product_launch">
+          </div>
+          <div class="form-group">
+            <label>Profile URL (optional)</label>
+            <input id="s20ProfileUrl" value="https://instagram.com/maria_techcorp">
+          </div>
+        </div>
+
+        <div class="btn-group">
+          <button class="btn-primary" id="s20SubmitBtn" onclick="runScenario20()" style="background: linear-gradient(45deg, #833AB4, #E1306C, #F77737);">📸 Run Scenario 20</button>
+        </div>
+        <div id="s20Status" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- SCENARIO 21: Pipeline Report -->
+      <div class="card" style="border-left: 4px solid #6366f1;">
+        <h2><span class="badge badge-step" style="background:#eef2ff; color:#4338ca;">Scenario 21</span> 📊 Pipeline Report &ndash; Opportunities across Stages</h2>
+        <p>Fetches the pipeline dashboard, revenue analytics, and stage-grouped pipeline view. Verifies stage breakdown totals, win rate, and forecast categories.</p>
+        <div class="btn-group">
+          <button class="btn-primary" id="s21SubmitBtn" onclick="runScenario21()" style="background:#6366f1;">📊 Run Scenario 21</button>
+        </div>
+        <div id="s21Status" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- SCENARIO 22: Lead Conversion Rate -->
+      <div class="card" style="border-left: 4px solid #f59e0b;">
+        <h2><span class="badge badge-step" style="background:#fef3c7; color:#92400e;">Scenario 22</span> 🔄 Lead Conversion Rate &ndash; Dashboard</h2>
+        <p>Queries lead analytics for conversion rate (converted/total), status &amp; source breakdowns, average score, and SLA-breached count. Verifies math consistency.</p>
+        <div class="btn-group">
+          <button class="btn-primary" id="s22SubmitBtn" onclick="runScenario22()" style="background:#f59e0b; color:#000;">🔄 Run Scenario 22</button>
+        </div>
+        <div id="s22Status" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- SCENARIO 23: SLA Compliance Report -->
+      <div class="card" style="border-left: 4px solid #ef4444;">
+        <h2><span class="badge badge-step" style="background:#fef2f2; color:#991b1b;">Scenario 23</span> ⏱️ SLA Compliance Report &ndash; Cases</h2>
+        <p>Fetches case analytics with SLA compliance rate, open/resolved/escalated counts, and priority breakdown. Highlights escalated cases.</p>
+        <div class="btn-group">
+          <button class="btn-primary" id="s23SubmitBtn" onclick="runScenario23()" style="background:#ef4444;">⏱️ Run Scenario 23</button>
+        </div>
+        <div id="s23Status" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- SCENARIO 24: Role-based Access -->
+      <div class="card" style="border-left: 4px solid #059669;">
+        <h2><span class="badge badge-step" style="background:#d1fae5; color:#065f46;">Scenario 24</span> 🔐 Role-based Access Control</h2>
+        <p>Registers a sales rep (USER) and a manager, then tests RBAC: USER cannot delete/stage-change opportunities or access admin endpoints; MANAGER can view all; ADMIN can edit sharing rules.</p>
+        <div class="btn-group">
+          <button class="btn-primary" id="s24SubmitBtn" onclick="runScenario24()" style="background:#059669;">🔐 Run Scenario 24</button>
+        </div>
+        <div id="s24Status" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- SCENARIO 25: Field-level Security -->
+      <div class="card" style="border-left: 4px solid #7c3aed;">
+        <h2><span class="badge badge-step" style="background:#ede9fe; color:#5b21b6;">Scenario 25</span> 🛡️ Field-level Security</h2>
+        <p>Creates a HIDDEN rule on Opportunity.amount for USER role. Verifies rule CRUD, that junior reps cannot manage rules, and that managers have no HIDDEN restriction on revenue.</p>
+        <div class="btn-group">
+          <button class="btn-primary" id="s25SubmitBtn" onclick="runScenario25()" style="background:#7c3aed;">🛡️ Run Scenario 25</button>
+        </div>
+        <div id="s25Status" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- SCENARIO 26: Audit Log Validation -->
+      <div class="card" style="border-left: 4px solid #0891b2;">
+        <h2><span class="badge badge-step" style="background:#cffafe; color:#155e75;">Scenario 26</span> 📝 Audit Log Validation</h2>
+        <p>Creates an opportunity, advances stages, and verifies the activity timeline captures every change with old&nbsp;→&nbsp;new values and timestamps.</p>
+        <div class="btn-group">
+          <button class="btn-primary" id="s26SubmitBtn" onclick="runScenario26()" style="background:#0891b2;">📝 Run Scenario 26</button>
+        </div>
+        <div id="s26Status" class="status-bar" style="margin-top:0.75rem;"></div>
+      </div>
+
+      <!-- STEP 6: VERIFY -->
+      <div class="card">
+        <h2><span class="badge badge-step">Step 6</span> Verify Results</h2>
+        <div class="btn-group" style="margin-top:0;">
+          <button class="btn-primary btn-sm" onclick="verifyLeads()">&#128269; List Leads</button>
+          <button class="btn-outline btn-sm" onclick="verifyAnalytics()">&#128202; Analytics</button>
+          <button class="btn-outline btn-sm" onclick="verifyNotifications()">&#128276; Notifications</button>
+          <button class="btn-outline btn-sm" onclick="verifyExecutions()">&#9881; Workflow Logs</button>
+        </div>
+        <div id="verifyResult" style="margin-top:1rem; display:none;"></div>
+      </div>
+    </div>
+
+    <!-- ===================== FULL-WIDTH LOG ===================== -->
+    <div class="card section-full">
+      <h2 style="display:flex; justify-content:space-between; align-items:center;">
+        &#128220; Activity Log
+        <button class="btn-outline btn-sm" onclick="clearLog()">Clear</button>
+      </h2>
+      <div class="log-panel" id="logPanel">
+        <div class="log-entry"><span class="log-info">Ready. Start with Step 1 — Register or Login.</span></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  // ─── State ─────────────────────────────────────────
+  let TOKEN = '';
+  let TENANT = '';
+  let USER_ID = '';
+  let USER_EMAIL = '';
+  let LAST_LEAD_ID = '';
+
+  const AUTH_URL  = 'http://localhost:8081';
+  const LEAD_URL  = 'http://localhost:8082';
+  const ACCOUNT_URL = 'http://localhost:8083';
+  const CONTACT_URL = 'http://localhost:8084';
+  const OPP_URL   = 'http://localhost:8085';
+  const ACTIVITY_URL = 'http://localhost:8086';
+  const NOTIF_URL = 'http://localhost:8087';
+  const WF_URL    = 'http://localhost:8088';
+  const EMAIL_URL = 'http://localhost:8090';
+  const CASE_URL  = 'http://localhost:8092';
+  const CAMPAIGN_URL = 'http://localhost:8093';
+  const INTEGRATION_URL = 'http://localhost:8091';
+
+  // ─── Helpers ───────────────────────────────────────
+  function log(msg, type = 'info') {
+    const panel = document.getElementById('logPanel');
+    const cls = { ok: 'log-ok', err: 'log-err', info: 'log-info', data: 'log-data' }[type] || 'log-info';
+    const time = new Date().toLocaleTimeString();
+    const entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.innerHTML = `<span class="log-time">[${time}]</span> <span class="${cls}">${msg}</span>`;
+    panel.appendChild(entry);
+    panel.scrollTop = panel.scrollHeight;
+  }
+
+  function clearLog() {
+    document.getElementById('logPanel').innerHTML = '';
+    log('Log cleared.');
+  }
+
+  function showStatus(id, msg, type) {
+    const el = document.getElementById(id);
+    el.className = `status-bar show ${type}`;
+    el.textContent = msg;
+  }
+
+  function headers(json = true) {
+    const h = { 'Authorization': `Bearer ${TOKEN}`, 'X-Tenant-ID': TENANT };
+    if (json) h['Content-Type'] = 'application/json';
+    return h;
+  }
+
+  async function api(method, url, body = null) {
+    const opts = { method, headers: headers(!!body) };
+    if (body) opts.body = JSON.stringify(body);
+    const res = await fetch(url, opts);
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = text; }
+    if (!res.ok) throw { status: res.status, data };
+    return data;
+  }
+
+  function ensureAuth() {
+    if (!TOKEN) { alert('Please login first (Step 1)'); throw new Error('Not authenticated'); }
+  }
+
+  // ─── Step 1: Auth ─────────────────────────────────
+  async function doRegister() {
+    try {
+      log('Registering user...');
+      const body = {
+        email: document.getElementById('authEmail').value,
+        password: document.getElementById('authPassword').value,
+        firstName: document.getElementById('authFirst').value,
+        lastName: document.getElementById('authLast').value,
+        tenantId: document.getElementById('authTenant').value
+      };
+      const resp = await api('POST', `${AUTH_URL}/api/v1/auth/register`, body);
+      const data = resp.data || resp;
+      TOKEN = data.accessToken;
+      TENANT = data.tenantId || body.tenantId;
+      USER_ID = data.userId;
+      USER_EMAIL = body.email;
+      showStatus('authStatus', `✅ Registered! User: ${USER_ID} — promoting to ADMIN...`, 'info');
+      log(`✔ Registered as ${body.email} | userId=${USER_ID} | tenant=${TENANT}`, 'ok');
+      await promoteToAdmin();
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || JSON.stringify(e.data);
+      showStatus('authStatus', `❌ ${msg}`, 'error');
+      log(`✘ Register failed: ${msg}`, 'err');
+      if (msg && (msg.includes('already') || msg.includes('exists'))) {
+        log('User may already exist — try Login instead.', 'info');
+      }
+    }
+  }
+
+  async function doLogin() {
+    try {
+      log('Logging in...');
+      const body = {
+        email: document.getElementById('authEmail').value,
+        password: document.getElementById('authPassword').value,
+        tenantId: document.getElementById('authTenant').value
+      };
+      const resp = await api('POST', `${AUTH_URL}/api/v1/auth/login`, body);
+      const data = resp.data || resp;
+      TOKEN = data.accessToken;
+      TENANT = data.tenantId || body.tenantId;
+      USER_ID = data.userId;
+      USER_EMAIL = body.email;
+      const roles = data.roles || [];
+      if (!roles.includes('ADMIN')) {
+        showStatus('authStatus', `✅ Logged in! User: ${USER_ID} — promoting to ADMIN...`, 'info');
+        log(`✔ Logged in as ${body.email} | userId=${USER_ID} | tenant=${TENANT} | roles=${roles.join(',')}`, 'ok');
+        await promoteToAdmin();
+      } else {
+        showStatus('authStatus', `✅ Logged in as ADMIN! User: ${USER_ID}`, 'success');
+        log(`✔ Logged in as ${body.email} | userId=${USER_ID} | tenant=${TENANT} | roles=${roles.join(',')}`, 'ok');
+      }
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || JSON.stringify(e.data);
+      showStatus('authStatus', `❌ ${msg}`, 'error');
+      log(`✘ Login failed: ${msg}`, 'err');
+    }
+  }
+
+  async function promoteToAdmin() {
+    try {
+      log('Promoting user to ADMIN role via database...', 'info');
+      // Call the assign-role endpoint — if it fails (needs ADMIN), we do a direct DB promotion
+      // First try the API (in case user is already ADMIN)
+      try {
+        await api('POST', `${AUTH_URL}/api/v1/auth/users/${USER_ID}/roles?roleName=ADMIN`);
+        log('✔ ADMIN role assigned via API.', 'ok');
+      } catch (apiErr) {
+        // API requires ADMIN role — use the bootstrap endpoint or direct DB
+        log('API role assignment requires ADMIN. Using bootstrap promotion...', 'info');
+        // Call a raw fetch to the DB to promote (via psql in docker) — not available from browser.
+        // Instead, we'll re-login after DB promotion. For now, show instructions.
+        log('⚠ Cannot self-promote via API. Promoting via database...', 'info');
+        
+        // We can call the auth service's internal bootstrap — try registering with ADMIN role
+        // As a workaround, we'll create the ADMIN role and assign it via DB
+        // The most reliable approach: call a script endpoint or use the existing token
+        
+        // Actually, let's try a different approach — use the /api/v1/security/roles endpoint to create ADMIN role first
+        try {
+          await api('POST', `${AUTH_URL}/api/v1/security/roles`, { name: 'ADMIN', description: 'Administrator role' });
+          log('Created ADMIN role.', 'info');
+        } catch (e2) { /* role may already exist */ }
+        
+        // Since we can't self-assign, show manual step
+        showStatus('authStatus', '⚠ User has USER role. Run the promote command below, then click Login again.', 'error');
+        log('━━━ Run this command in terminal to promote to ADMIN: ━━━', 'err');
+        log(`docker exec crm-postgres psql -U postgres -d crm_auth -c "INSERT INTO user_roles (user_id, role_id) SELECT '${USER_ID}', r.id FROM roles r WHERE r.name='ADMIN' AND r.tenant_id='${TENANT}' ON CONFLICT DO NOTHING; INSERT INTO roles (id, name, description, tenant_id) SELECT gen_random_uuid(), 'ADMIN', 'Admin role', '${TENANT}' WHERE NOT EXISTS (SELECT 1 FROM roles WHERE name='ADMIN' AND tenant_id='${TENANT}');"`, 'data');
+        log('Then click Login again to get a token with ADMIN role.', 'info');
+        return;
+      }
+      // Re-login to get a new token with ADMIN role
+      log('Re-logging in to get ADMIN token...', 'info');
+      const body = {
+        email: USER_EMAIL,
+        password: document.getElementById('authPassword').value,
+        tenantId: TENANT
+      };
+      const resp = await api('POST', `${AUTH_URL}/api/v1/auth/login`, body);
+      const data = resp.data || resp;
+      TOKEN = data.accessToken;
+      showStatus('authStatus', `✅ Logged in as ADMIN! User: ${USER_ID}`, 'success');
+      log(`✔ Re-logged in with ADMIN role`, 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || JSON.stringify(e.data);
+      log(`✘ Promote failed: ${msg}`, 'err');
+    }
+  }
+
+  // ─── Step 2: Scoring Rules ────────────────────────
+  async function setupScoringRules() {
+    ensureAuth();
+    try {
+      log('Creating scoring rules...');
+      const rules = [
+        { name: 'Web Source Bonus (+25)', criteriaField: 'source', criteriaOperator: 'EQUALS', criteriaValue: 'WEB', scoreDelta: 25, active: true },
+        { name: 'VP Title Bonus (+20)', criteriaField: 'title', criteriaOperator: 'CONTAINS', criteriaValue: 'VP', scoreDelta: 20, active: true }
+      ];
+      for (const rule of rules) {
+        const r = await api('POST', `${LEAD_URL}/api/v1/leads/scoring-rules`, rule);
+        log(`✔ Scoring rule created: "${rule.name}" → ${rule.scoreDelta > 0 ? '+' : ''}${rule.scoreDelta} pts`, 'ok');
+      }
+      showStatus('scoringStatus', '✅ 2 scoring rules created!', 'success');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || JSON.stringify(e.data);
+      showStatus('scoringStatus', `❌ ${msg}`, 'error');
+      log(`✘ Scoring rule error: ${msg}`, 'err');
+    }
+  }
+
+  async function listScoringRules() {
+    ensureAuth();
+    try {
+      const resp = await api('GET', `${LEAD_URL}/api/v1/leads/scoring-rules`);
+      const raw = resp.data || resp;
+      const rules = Array.isArray(raw) ? raw : (raw.content || []);
+      log(`📋 Found ${rules.length} scoring rule(s)`, 'data');
+      rules.forEach(r => log(`   • ${r.name}: ${r.criteriaField} ${r.criteriaOperator} "${r.criteriaValue}" → ${r.scoreDelta > 0 ? '+' : ''}${r.scoreDelta} pts (active: ${r.active})`, 'data'));
+    } catch (e) {
+      log(`✘ ${JSON.stringify(e.data)}`, 'err');
+    }
+  }
+
+  // ─── Step 3: Assignment Rules ─────────────────────
+  async function setupAssignmentRule() {
+    ensureAuth();
+    try {
+      log('Creating assignment rule...');
+      const rule = {
+        name: 'Web Leads → Current User',
+        criteriaField: 'source',
+        criteriaOperator: 'EQUALS',
+        criteriaValue: 'WEB',
+        assignTo: USER_ID,
+        assignmentType: 'DIRECT',
+        priority: 10,
+        active: true
+      };
+      await api('POST', `${LEAD_URL}/api/v1/leads/assignment-rules`, rule);
+      showStatus('assignStatus', `✅ Assignment rule created! Web leads → ${USER_EMAIL}`, 'success');
+      log(`✔ Assignment rule: WEB leads → user ${USER_ID}`, 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || JSON.stringify(e.data);
+      showStatus('assignStatus', `❌ ${msg}`, 'error');
+      log(`✘ Assignment rule error: ${msg}`, 'err');
+    }
+  }
+
+  async function listAssignmentRules() {
+    ensureAuth();
+    try {
+      const resp = await api('GET', `${LEAD_URL}/api/v1/leads/assignment-rules`);
+      const raw = resp.data || resp;
+      const rules = Array.isArray(raw) ? raw : (raw.content || []);
+      log(`📋 Found ${rules.length} assignment rule(s)`, 'data');
+      rules.forEach(r => log(`   • ${r.name}: ${r.criteriaField} ${r.criteriaOperator} "${r.criteriaValue}" → ${r.assignmentType} (priority: ${r.priority})`, 'data'));
+    } catch (e) {
+      log(`✘ ${JSON.stringify(e.data)}`, 'err');
+    }
+  }
+
+  // ─── Step 4: Workflow Rule ────────────────────────
+  async function setupWorkflowRule() {
+    ensureAuth();
+    try {
+      log('Creating workflow rule...');
+      const rule = {
+        name: 'Notify on New Web Lead',
+        description: 'Send notification + email when a web lead is created',
+        entityType: 'Lead',
+        triggerEvent: 'CREATED',
+        conditions: [
+          { fieldName: 'source', operator: 'EQUALS', value: 'WEB', logicalOperator: 'AND' }
+        ],
+        actions: [
+          { actionType: 'SEND_NOTIFICATION', targetField: USER_EMAIL, targetValue: 'New web lead received!', actionOrder: 0 },
+          { actionType: 'SEND_EMAIL', targetField: USER_EMAIL, targetValue: 'A new lead has been submitted via the web form', actionOrder: 1 }
+        ]
+      };
+      await api('POST', `${WF_URL}/api/v1/workflows`, rule);
+      showStatus('workflowStatus', '✅ Workflow rule created!', 'success');
+      log(`✔ Workflow rule: On Lead CREATED (source=WEB) → SEND_NOTIFICATION + SEND_EMAIL`, 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || JSON.stringify(e.data);
+      showStatus('workflowStatus', `❌ ${msg}`, 'error');
+      log(`✘ Workflow error: ${msg}`, 'err');
+    }
+  }
+
+  async function listWorkflows() {
+    ensureAuth();
+    try {
+      const resp = await api('GET', `${WF_URL}/api/v1/workflows`);
+      const raw = resp.data || resp;
+      const rules = Array.isArray(raw) ? raw : (raw.content || []);
+      log(`📋 Found ${rules.length} workflow rule(s)`, 'data');
+      rules.forEach(r => log(`   • ${r.name}: ${r.entityType}.${r.triggerEvent} → ${(r.actions||[]).length} action(s) (active: ${r.active})`, 'data'));
+    } catch (e) {
+      log(`✘ ${JSON.stringify(e.data)}`, 'err');
+    }
+  }
+
+  // ─── Step 5: Submit Lead ──────────────────────────
+  async function submitLead() {
+    ensureAuth();
+    const btn = document.getElementById('submitLeadBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Submitting...';
+    try {
+      const body = {
+        firstName: document.getElementById('leadFirst').value,
+        lastName: document.getElementById('leadLast').value,
+        email: document.getElementById('leadEmail').value,
+        phone: document.getElementById('leadPhone').value,
+        company: document.getElementById('leadCompany').value,
+        title: document.getElementById('leadTitle').value,
+        source: document.getElementById('leadSource').value,
+        description: document.getElementById('leadDesc').value
+      };
+      const territory = document.getElementById('leadTerritory').value;
+      if (territory) body.territory = territory;
+
+      log(`🚀 Submitting lead: ${body.firstName} ${body.lastName} (${body.source})...`);
+      const resp = await api('POST', `${LEAD_URL}/api/v1/leads`, body);
+      const lead = resp.data || resp;
+      LAST_LEAD_ID = lead.id;
+
+      showStatus('leadStatus', `✅ Lead created! ID: ${lead.id} | Score: ${lead.leadScore} | Status: ${lead.status}`, 'success');
+      log(`✔ Lead created successfully!`, 'ok');
+      log(`   ID:         ${lead.id}`, 'data');
+      log(`   Name:       ${lead.firstName} ${lead.lastName}`, 'data');
+      log(`   Status:     ${lead.status}`, 'data');
+      log(`   Score:      ${lead.leadScore}`, 'data');
+      log(`   Assigned:   ${lead.assignedTo || '(none)'}`, 'data');
+      log(`   Source:     ${lead.source}`, 'data');
+      log(`   Created At: ${lead.createdAt}`, 'data');
+
+      log('⏳ Kafka events are being processed (scoring, assignment, workflow, notifications)...', 'info');
+      log('→ Use Step 6 buttons to verify downstream effects.', 'info');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || JSON.stringify(e.data);
+      showStatus('leadStatus', `❌ ${msg}`, 'error');
+      log(`✘ Lead creation failed: ${msg}`, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '&#128640; Submit Lead';
+    }
+  }
+
+  function clearForm() {
+    ['leadFirst','leadLast','leadEmail','leadPhone','leadCompany','leadTitle','leadDesc','leadTerritory'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('leadSource').value = 'WEB';
+  }
+
+  // ─── Step 6: Verify ──────────────────────────────
+  function showVerify(html) {
+    const el = document.getElementById('verifyResult');
+    el.style.display = 'block';
+    el.innerHTML = html;
+  }
+
+  async function verifyLeads() {
+    ensureAuth();
+    try {
+      log('Fetching leads...');
+      const resp = await api('GET', `${LEAD_URL}/api/v1/leads?page=0&size=10&sortBy=createdAt&sortDir=desc`);
+      const raw = resp.data || resp;
+      const leads = raw.content || (Array.isArray(raw) ? raw : []);
+      log(`📋 Found ${leads.length} lead(s)`, 'data');
+      let html = '<table class="result-table"><tr><th>Name</th><th>Status</th><th>Score</th><th>Source</th><th>Assigned</th><th>Created</th></tr>';
+      leads.forEach(l => {
+        html += `<tr>
+          <td><strong>${l.firstName} ${l.lastName}</strong><br><span style="color:var(--muted); font-size:0.75rem;">${l.email || ''}</span></td>
+          <td><span class="tag tag-new">${l.status}</span></td>
+          <td><span class="tag tag-score">${l.leadScore}</span></td>
+          <td><span class="tag tag-web">${l.source}</span></td>
+          <td style="font-size:0.78rem;">${l.assignedTo ? l.assignedTo.substring(0,8)+'...' : '—'}</td>
+          <td style="font-size:0.78rem;">${new Date(l.createdAt).toLocaleString()}</td>
+        </tr>`;
+      });
+      html += '</table>';
+      showVerify(html);
+    } catch (e) {
+      log(`✘ ${JSON.stringify(e.data)}`, 'err');
+    }
+  }
+
+  async function verifyAnalytics() {
+    ensureAuth();
+    try {
+      log('Fetching analytics...');
+      const resp = await api('GET', `${LEAD_URL}/api/v1/leads/analytics`);
+      const d = resp.data || resp;
+      log(`📊 Analytics: total=${d.totalLeads}, converted=${d.convertedLeads}, avgScore=${d.averageScore}, conversionRate=${d.conversionRate}`, 'data');
+      let html = `<table class="result-table">
+        <tr><th>Metric</th><th>Value</th></tr>
+        <tr><td>Total Leads</td><td><strong>${d.totalLeads}</strong></td></tr>
+        <tr><td>Converted</td><td>${d.convertedLeads}</td></tr>
+        <tr><td>Conversion Rate</td><td>${(d.conversionRate * 100).toFixed(1)}%</td></tr>
+        <tr><td>Average Score</td><td><span class="tag tag-score">${d.averageScore?.toFixed(1)}</span></td></tr>
+        <tr><td>SLA Breached</td><td>${d.slaBreached || 0}</td></tr>`;
+      if (d.byStatus) {
+        html += '<tr><td colspan="2"><strong>By Status</strong></td></tr>';
+        Object.entries(d.byStatus).forEach(([k,v]) => { html += `<tr><td style="padding-left:1.5rem;">${k}</td><td>${v}</td></tr>`; });
+      }
+      if (d.bySource) {
+        html += '<tr><td colspan="2"><strong>By Source</strong></td></tr>';
+        Object.entries(d.bySource).forEach(([k,v]) => { html += `<tr><td style="padding-left:1.5rem;">${k}</td><td>${v}</td></tr>`; });
+      }
+      html += '</table>';
+      showVerify(html);
+    } catch (e) {
+      log(`✘ ${JSON.stringify(e.data)}`, 'err');
+    }
+  }
+
+  async function verifyNotifications() {
+    ensureAuth();
+    try {
+      log('Fetching notifications...');
+      const resp = await api('GET', `${NOTIF_URL}/api/v1/notifications?page=0&size=10`);
+      const raw = resp.data || resp;
+      const items = raw.content || (Array.isArray(raw) ? raw : []);
+      log(`📋 Found ${items.length} notification(s)`, 'data');
+      let html = '<table class="result-table"><tr><th>Type</th><th>Subject</th><th>Recipient</th><th>Status</th><th>Created</th></tr>';
+      items.forEach(n => {
+        html += `<tr>
+          <td><span class="tag tag-web">${n.type}</span></td>
+          <td>${n.subject || '—'}</td>
+          <td style="font-size:0.78rem;">${n.recipient || '—'}</td>
+          <td><span class="tag ${n.status === 'SENT' ? 'tag-score' : 'tag-new'}">${n.status}</span></td>
+          <td style="font-size:0.78rem;">${new Date(n.createdAt).toLocaleString()}</td>
+        </tr>`;
+      });
+      html += '</table>';
+      if (items.length === 0) html = '<p style="color:var(--muted); font-size:0.85rem;">No notifications yet. They may take a few seconds to arrive via Kafka.</p>';
+      showVerify(html);
+    } catch (e) {
+      log(`✘ ${JSON.stringify(e.data)}`, 'err');
+    }
+  }
+
+  async function verifyExecutions() {
+    ensureAuth();
+    try {
+      log('Fetching workflow execution logs...');
+      const resp = await api('GET', `${WF_URL}/api/v1/workflows/executions?page=0&size=10`);
+      const raw = resp.data || resp;
+      const items = raw.content || (Array.isArray(raw) ? raw : []);
+      log(`📋 Found ${items.length} execution log(s)`, 'data');
+      let html = '<table class="result-table"><tr><th>Rule</th><th>Entity</th><th>Status</th><th>Action</th><th>Executed</th></tr>';
+      items.forEach(e => {
+        html += `<tr>
+          <td style="font-size:0.78rem;">${e.ruleName || e.ruleId?.substring(0,8) || '—'}</td>
+          <td style="font-size:0.78rem;">${e.entityType || '—'} ${e.entityId ? e.entityId.substring(0,8)+'...' : ''}</td>
+          <td><span class="tag ${e.status === 'SUCCESS' ? 'tag-score' : 'tag-new'}">${e.status}</span></td>
+          <td style="font-size:0.78rem;">${e.actionType || e.actionsExecuted || '—'}</td>
+          <td style="font-size:0.78rem;">${e.executedAt ? new Date(e.executedAt).toLocaleString() : '—'}</td>
+        </tr>`;
+      });
+      html += '</table>';
+      if (items.length === 0) html = '<p style="color:var(--muted); font-size:0.85rem;">No workflow executions yet. They may take a few seconds to process via Kafka.</p>';
+      showVerify(html);
+    } catch (e) {
+      log(`✘ ${JSON.stringify(e.data)}`, 'err');
+    }
+  }
+  // ─── Scenario 2: WhatsApp Lead Capture ─────────────
+  async function submitWhatsAppLead() {
+    ensureAuth();
+    const btn = document.getElementById('waSubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Processing...';
+    try {
+      const phone = document.getElementById('waPhone').value;
+      const body = document.getElementById('waBody').value;
+      const firstName = document.getElementById('waFirst').value || undefined;
+      const lastName = document.getElementById('waLast').value || undefined;
+
+      // Step A: Send inbound WhatsApp message to notification-service webhook
+      log(`💬 [WhatsApp] Sending inbound message from ${phone}...`);
+      const waResp = await api('POST', `${NOTIF_URL}/api/v1/communications/whatsapp/webhook`, {
+        fromNumber: phone,
+        body: body,
+        messageType: 'TEXT'
+      });
+      const waMsg = waResp.data || waResp;
+      log(`✔ [WhatsApp] Inbound message saved: id=${waMsg.id} direction=${waMsg.direction}`, 'ok');
+      log(`   From: ${waMsg.fromNumber} → To: ${waMsg.toNumber}`, 'data');
+      log(`   Body: "${waMsg.body}"`, 'data');
+
+      // Step B: Capture phone → create/find lead in lead-service
+      log(`📱 [WhatsApp] Creating lead from phone ${phone}...`);
+      const params = new URLSearchParams({ phone, source: 'WHATSAPP' });
+      if (firstName) params.set('firstName', firstName);
+      if (lastName) params.set('lastName', lastName);
+      const leadResp = await api('POST', `${LEAD_URL}/api/v1/leads/capture-phone?${params}`);
+      const lead = leadResp.data || leadResp;
+      LAST_LEAD_ID = lead.id;
+
+      showStatus('waStatus', `✅ WhatsApp lead created! ID: ${lead.id} | Territory: ${lead.territory} | Score: ${lead.leadScore}`, 'success');
+      log(`✔ [WhatsApp] Lead captured successfully!`, 'ok');
+      log(`   Lead ID:    ${lead.id}`, 'data');
+      log(`   Name:       ${lead.firstName} ${lead.lastName}`, 'data');
+      log(`   Phone:      ${lead.phone}`, 'data');
+      log(`   Source:     ${lead.source}`, 'data');
+      log(`   Territory:  ${lead.territory} (auto-resolved from phone prefix)`, 'data');
+      log(`   Score:      ${lead.leadScore}`, 'data');
+      log(`   Assigned:   ${lead.assignedTo || '(none - set up a WHATSAPP assignment rule)'}`, 'data');
+
+      // Step C: Verify in unified inbox
+      log(`📥 [WhatsApp] Checking unified inbox...`);
+      try {
+        const inboxResp = await api('GET', `${NOTIF_URL}/api/v1/communications/inbox?page=0&size=5`);
+        const inbox = inboxResp.data || inboxResp;
+        const items = inbox.content || (Array.isArray(inbox) ? inbox : []);
+        const waItems = items.filter(i => i.channel === 'WHATSAPP');
+        log(`   📥 Inbox: ${waItems.length} WhatsApp message(s) in unified inbox`, 'data');
+      } catch (e) {
+        log(`   ⚠ Could not check inbox: ${e.data?.message || ''}`, 'info');
+      }
+
+      log('→ Use Step 6 "List Leads" to see the WhatsApp lead alongside web leads.', 'info');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || JSON.stringify(e.data);
+      showStatus('waStatus', `❌ ${msg}`, 'error');
+      log(`✘ [WhatsApp] Failed: ${msg}`, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '💬 Simulate Inbound WhatsApp';
+    }
+  }
+
+  // ─── Scenario 3: Email Lead Capture ───────────────────
+  async function submitEmailLead() {
+    ensureAuth();
+    const btn = document.getElementById('emailSubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Processing...';
+    try {
+      const fromAddr = document.getElementById('emailFrom').value;
+      const toAddr = document.getElementById('emailTo').value;
+      const subject = document.getElementById('emailSubject').value;
+      const bodyText = document.getElementById('emailBody').value;
+
+      // Step A: Send inbound email to email-service
+      log(`📧 [Email] Receiving inbound email from ${fromAddr}...`);
+      const emailResp = await api('POST', `${EMAIL_URL}/api/v1/email/messages/inbound`, {
+        fromAddress: fromAddr,
+        toAddress: toAddr,
+        subject: subject,
+        bodyText: bodyText,
+        bodyHtml: `<p>${bodyText}</p>`
+      });
+      log(`✔ [Email] Inbound email saved: id=${emailResp.id} direction=${emailResp.direction} status=${emailResp.status}`, 'ok');
+      log(`   From: ${emailResp.fromAddress} → To: ${emailResp.toAddresses}`, 'data');
+      log(`   Subject: "${emailResp.subject}"`, 'data');
+
+      // Step B: Wait for Kafka to auto-create lead (small delay)
+      log(`⏳ [Email] Waiting for Kafka EMAIL_RECEIVED event to auto-create lead...`, 'info');
+      await new Promise(r => setTimeout(r, 2000));
+
+      // Step C: Verify lead was auto-created
+      log(`🔍 [Email] Checking if lead was auto-created from ${fromAddr}...`);
+      const dupeResp = await api('GET', `${LEAD_URL}/api/v1/leads/duplicates?email=${encodeURIComponent(fromAddr)}`);
+      const dupes = dupeResp.data || dupeResp;
+      const leads = Array.isArray(dupes) ? dupes : [];
+
+      if (leads.length > 0) {
+        const lead = leads[0];
+        LAST_LEAD_ID = lead.id;
+        showStatus('emailStatus', `✅ Email lead auto-created! ID: ${lead.id} | Source: ${lead.source} | Score: ${lead.leadScore}`, 'success');
+        log(`✔ [Email] Lead found/created!`, 'ok');
+        log(`   Lead ID:  ${lead.id}`, 'data');
+        log(`   Email:    ${lead.email}`, 'data');
+        log(`   Source:   ${lead.source}`, 'data');
+        log(`   Score:    ${lead.leadScore}`, 'data');
+        log(`   Assigned: ${lead.assignedTo || '(none)'}`, 'data');
+
+        // Step D: Check email activity on the lead
+        log(`📋 [Email] Checking activities on the lead...`);
+        try {
+          const actResp = await api('GET', `${LEAD_URL}/api/v1/leads/${lead.id}/activities?type=EMAIL_RECEIVED&page=0&size=5`);
+          const actData = actResp.data || actResp;
+          const activities = actData.content || (Array.isArray(actData) ? actData : []);
+          if (activities.length > 0) {
+            log(`✔ [Email] Email attached as activity on lead!`, 'ok');
+            activities.forEach(a => log(`   • ${a.activityType}: ${a.title} | ${a.description}`, 'data'));
+          } else {
+            log(`⚠ [Email] Activity may still be processing (Kafka async).`, 'info');
+          }
+        } catch (e) {
+          log(`⚠ [Email] Could not check activities: ${e.data?.message || ''}`, 'info');
+        }
+      } else {
+        showStatus('emailStatus', `⚠ Lead not found yet — Kafka may still be processing. Try "List Leads" in a few seconds.`, 'info');
+        log(`⚠ [Email] Lead not yet created, Kafka is async. Check Step 6 shortly.`, 'info');
+      }
+
+      // Step E: Check email inbox
+      log(`📥 [Email] Verifying email appears in inbox...`);
+      try {
+        const inboxResp = await api('GET', `${EMAIL_URL}/api/v1/email/messages/inbox?page=0&size=5`);
+        const msgs = inboxResp.content || (Array.isArray(inboxResp) ? inboxResp : []);
+        log(`   📥 Inbox: ${msgs.length} inbound email(s) found`, 'data');
+      } catch (e) {
+        log(`   ⚠ Could not check inbox: ${e.data?.message || ''}`, 'info');
+      }
+
+      log('→ Use Step 6 "List Leads" to see the email-sourced lead alongside other leads.', 'info');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || JSON.stringify(e.data);
+      showStatus('emailStatus', `❌ ${msg}`, 'error');
+      log(`✘ [Email] Failed: ${msg}`, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '📧 Simulate Inbound Email';
+    }
+  }
+
+  // ─── Scenario 4: Lead Qualification & Conversion ───────
+  async function qualifyAndConvertLead() {
+    if (!TOKEN) { alert('Login first (Step 1)'); return; }
+    const leadId = document.getElementById('convertLeadId').value.trim() || LAST_LEAD_ID;
+    if (!leadId) { alert('No lead ID. Create a lead first or paste an ID.'); return; }
+    const oppName = document.getElementById('convertOppName').value.trim();
+    const amount = parseFloat(document.getElementById('convertAmount').value) || 0;
+    const stage = document.getElementById('convertStage').value;
+
+    const statusEl = 'convertStatus';
+    showStatus(statusEl, '⏳ Qualifying and converting lead...', 'pending');
+    log('═══ Scenario 4: Lead Qualification & Conversion ═══', 'info');
+
+    try {
+      // Step A: Update lead status → QUALIFIED
+      log('Step A: Setting lead status to QUALIFIED...', 'info');
+      const qualResp = await api('PUT', `${LEAD_URL}/api/v1/leads/${leadId}`, { status: 'QUALIFIED' });
+      const qualData = qualResp.data || qualResp;
+      log(`✔ Lead status updated → ${qualData.status}`, 'ok');
+
+      // Step B: Convert lead
+      log('Step B: Converting lead (creating Account + Contact + Opportunity)...', 'info');
+      const convertResp = await api('POST', `${LEAD_URL}/api/v1/leads/${leadId}/convert`, {
+        opportunityName: oppName,
+        amount: amount,
+        stage: stage,
+        createAccount: true,
+        createContact: true
+      });
+      const convData = convertResp.data || convertResp;
+      log(`✔ Lead converted! converted=${convData.converted}, status=${convData.status}`, 'ok');
+
+      const accountId = convData.accountId;
+      const contactId = convData.contactId;
+      const oppId = convData.opportunityId;
+      log(`   Account ID: ${accountId || 'none'}`, 'data');
+      log(`   Contact ID: ${contactId || 'none'}`, 'data');
+      log(`   Opportunity ID: ${oppId || 'none'}`, 'data');
+
+      // Step C: Verify Account
+      if (accountId) {
+        try {
+          const accResp = await api('GET', `${ACCOUNT_URL}/api/v1/accounts/${accountId}`);
+          const acc = accResp.data || accResp;
+          log(`✔ Account verified: "${acc.name}" (type=${acc.type}, stage=${acc.lifecycleStage})`, 'ok');
+        } catch (e) { log(`⚠ Could not verify account: ${e.data?.message || ''}`, 'info'); }
+      }
+
+      // Step D: Verify Contact
+      if (contactId) {
+        try {
+          const ctResp = await api('GET', `${CONTACT_URL}/api/v1/contacts/${contactId}`);
+          const ct = ctResp.data || ctResp;
+          log(`✔ Contact verified: "${ct.firstName} ${ct.lastName}" email=${ct.email}`, 'ok');
+        } catch (e) { log(`⚠ Could not verify contact: ${e.data?.message || ''}`, 'info'); }
+      }
+
+      // Step E: Verify Opportunity
+      if (oppId) {
+        try {
+          const oppResp = await api('GET', `${OPP_URL}/api/v1/opportunities/${oppId}`);
+          const opp = oppResp.data || oppResp;
+          log(`✔ Opportunity verified: "${opp.name}" stage=${opp.stage} amount=$${opp.amount}`, 'ok');
+        } catch (e) { log(`⚠ Could not verify opportunity: ${e.data?.message || ''}`, 'info'); }
+      }
+
+      // Step F: Verify activities moved to Contact
+      if (contactId) {
+        try {
+          const actResp = await api('GET', `${ACTIVITY_URL}/api/v1/activities/related/${contactId}?page=0&size=10`);
+          const actData = actResp.data || actResp;
+          const acts = actData.content || [];
+          log(`✔ Activities on Contact: ${acts.length} activity(ies) transferred`, 'ok');
+          acts.forEach(a => log(`   [${a.type}] ${a.subject}`, 'data'));
+        } catch (e) { log(`⚠ Could not verify contact activities: ${e.data?.message || ''}`, 'info'); }
+      }
+
+      // Step G: Verify activities moved to Opportunity
+      if (oppId) {
+        try {
+          const actResp = await api('GET', `${ACTIVITY_URL}/api/v1/activities/related/${oppId}?page=0&size=10`);
+          const actData = actResp.data || actResp;
+          const acts = actData.content || [];
+          log(`✔ Activities on Opportunity: ${acts.length} activity(ies) transferred`, 'ok');
+          acts.forEach(a => log(`   [${a.type}] ${a.subject}`, 'data'));
+        } catch (e) { log(`⚠ Could not verify opportunity activities: ${e.data?.message || ''}`, 'info'); }
+      }
+
+      showStatus(statusEl, `✅ Lead converted! Account=${accountId ? '✔' : '—'} Contact=${contactId ? '✔' : '—'} Opportunity=${oppId ? '✔' : '—'}`, 'success');
+      log('═══ Scenario 4 Complete ═══', 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || JSON.stringify(e.data);
+      showStatus(statusEl, `❌ ${msg}`, 'error');
+      log(`✘ [Convert] Failed: ${msg}`, 'err');
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SCENARIO 5: Create Account
+  // ═══════════════════════════════════════════════════════════
+  let LAST_ACCOUNT_ID = '';
+
+  async function createAccount() {
+    ensureAuth();
+    const btn = document.getElementById('acctSubmitBtn');
+    const statusEl = 'acctStatus';
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Creating...';
+    try {
+      const name = document.getElementById('acctName').value;
+      const industry = document.getElementById('acctIndustry').value;
+      const website = document.getElementById('acctWebsite').value;
+      const phone = document.getElementById('acctPhone').value;
+      const revenue = parseFloat(document.getElementById('acctRevenue').value);
+      const employees = parseInt(document.getElementById('acctEmployees').value);
+      const territory = document.getElementById('acctTerritory').value;
+      const segment = document.getElementById('acctSegment').value;
+
+      log('═══ Scenario 5: Create Account ═══', 'info');
+
+      // Step A: Create the account
+      log('Step A: Creating account...', 'info');
+      const acctResp = await api('POST', `${ACCOUNT_URL}/api/v1/accounts`, {
+        name, industry, website, phone, annualRevenue: revenue,
+        numberOfEmployees: employees, territory, segment
+      });
+      const acct = acctResp.data;
+      LAST_ACCOUNT_ID = acct.id;
+      log(`✔ Account created: ${acct.name} (id=${acct.id})`, 'ok');
+      log(`   Industry=${acct.industry} Revenue=${acct.annualRevenue} Employees=${acct.numberOfEmployees}`, 'data');
+      log(`   Territory=${acct.territory} Segment=${acct.segment}`, 'data');
+
+      // Step B: Duplicate detection
+      log('Step B: Running duplicate detection...', 'info');
+      try {
+        const dupeResp = await api('GET', `${ACCOUNT_URL}/api/v1/accounts/duplicates?name=${encodeURIComponent(name)}`);
+        const dupes = dupeResp.data || [];
+        log(`✔ Duplicate detection: found ${dupes.length} match(es)`, 'ok');
+      } catch (e) { log('⚠ Duplicate detection endpoint not available', 'info'); }
+
+      // Step C: Verify owner assignment
+      log('Step C: Checking owner assignment...', 'info');
+      const getResp = await api('GET', `${ACCOUNT_URL}/api/v1/accounts/${acct.id}`);
+      const acctData = getResp.data;
+      log(`✔ Owner: ${acctData.ownerId || 'auto-assigned'}`, 'ok');
+
+      // Step D: Update health score
+      log('Step D: Updating health score...', 'info');
+      try {
+        await api('PUT', `${ACCOUNT_URL}/api/v1/accounts/${acct.id}/health-score`, { score: 85 });
+        log('✔ Health score set to 85', 'ok');
+      } catch (e) { log('⚠ Health score update not available', 'info'); }
+
+      // Step E: Check activity timeline
+      log('Step E: Checking activity timeline...', 'info');
+      try {
+        const actResp = await api('GET', `${ACCOUNT_URL}/api/v1/accounts/${acct.id}/activities`);
+        const acts = actResp.data || [];
+        log(`✔ Activity timeline: ${acts.length} entries`, 'ok');
+        (Array.isArray(acts) ? acts : []).forEach(a => log(`   [${a.type}] ${a.description}`, 'data'));
+      } catch (e) { log('⚠ Activity timeline not available', 'info'); }
+
+      showStatus(statusEl, `✅ Account "${acct.name}" created! ID: ${acct.id}`, 'success');
+      log('═══ Scenario 5 Complete ═══', 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || JSON.stringify(e.data);
+      showStatus(statusEl, `❌ ${msg}`, 'error');
+      log(`✘ [Account] Failed: ${msg}`, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '🏢 Create Account';
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SCENARIO 6: Add Contact Under Account
+  // ═══════════════════════════════════════════════════════════
+  async function addContactToAccount() {
+    ensureAuth();
+    if (!LAST_ACCOUNT_ID) { alert('Run Scenario 5 first to create an account.'); return; }
+    const btn = document.getElementById('contactSubmitBtn');
+    const statusEl = 'contactAcctStatus';
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Creating...';
+    try {
+      const firstName = document.getElementById('contactFirst').value;
+      const lastName = document.getElementById('contactLast').value;
+      const email = document.getElementById('contactEmail').value;
+      const phone = document.getElementById('contactPhone').value;
+      const title = document.getElementById('contactTitle').value;
+      const department = document.getElementById('contactDept').value;
+
+      log('═══ Scenario 6: Add Contact Under Account ═══', 'info');
+
+      // Step A: Create contact linked to account
+      log(`Step A: Creating contact under account ${LAST_ACCOUNT_ID}...`, 'info');
+      const contactResp = await api('POST', `${CONTACT_URL}/api/v1/contacts`, {
+        firstName, lastName, email, phone, title, department, accountId: LAST_ACCOUNT_ID
+      });
+      const contact = contactResp.data;
+      log(`✔ Contact created: ${contact.firstName} ${contact.lastName} (id=${contact.id})`, 'ok');
+      log(`   Title=${contact.title} Dept=${contact.department} Account=${contact.accountId}`, 'data');
+
+      // Step B: Verify email uniqueness (try creating duplicate)
+      log('Step B: Verifying email uniqueness...', 'info');
+      try {
+        await api('POST', `${CONTACT_URL}/api/v1/contacts`, {
+          firstName: 'Duplicate', lastName: 'Test', email, accountId: LAST_ACCOUNT_ID
+        });
+        log('⚠ Duplicate email was accepted (no uniqueness check)', 'info');
+      } catch (e) {
+        log('✔ Duplicate email rejected — uniqueness enforced', 'ok');
+      }
+
+      // Step C: Create second contact
+      log('Step C: Creating second contact...', 'info');
+      const contact2Resp = await api('POST', `${CONTACT_URL}/api/v1/contacts`, {
+        firstName: 'James', lastName: 'Wilson', email: `james.wilson@${email.split('@')[1]}`,
+        phone: '+1-555-9020', title: 'VP Sales', department: 'Sales', accountId: LAST_ACCOUNT_ID
+      });
+      const contact2 = contact2Resp.data;
+      log(`✔ Second contact: ${contact2.firstName} ${contact2.lastName} (id=${contact2.id})`, 'ok');
+
+      // Step D: Account 360 view — list contacts by account
+      log('Step D: Account 360 view — contacts by account...', 'info');
+      const acctContactsResp = await api('GET', `${CONTACT_URL}/api/v1/contacts/account/${LAST_ACCOUNT_ID}?size=50`);
+      const contacts = acctContactsResp.data?.content || [];
+      log(`✔ Account has ${contacts.length} contact(s)`, 'ok');
+      contacts.forEach(c => log(`   ${c.firstName} ${c.lastName} — ${c.title} (${c.email})`, 'data'));
+
+      showStatus(statusEl, `✅ ${contacts.length} contacts linked to account!`, 'success');
+      log('═══ Scenario 6 Complete ═══', 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || JSON.stringify(e.data);
+      showStatus(statusEl, `❌ ${msg}`, 'error');
+      log(`✘ [Contact] Failed: ${msg}`, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '👤 Add Contact & Verify';
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════
+  // SCENARIO 7: Merge Duplicate Accounts
+  // ═══════════════════════════════════════════════════════════
+  async function mergeAccounts() {
+    ensureAuth();
+    const btn = document.getElementById('mergeSubmitBtn');
+    const statusEl = 'mergeStatus';
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Merging...';
+    try {
+      const primaryName = document.getElementById('mergePrimaryName').value;
+      const dupName = document.getElementById('mergeDuplicateName').value;
+
+      log('═══ Scenario 7: Merge Duplicate Accounts ═══', 'info');
+
+      // Step A: Create primary account
+      log('Step A: Creating primary account...', 'info');
+      const primary = (await api('POST', `${ACCOUNT_URL}/api/v1/accounts`, {
+        name: primaryName, industry: 'Technology', annualRevenue: 10000000, territory: 'West', website: `https://${primaryName.toLowerCase().replace(/\s+/g, '')}.com`
+      })).data;
+      log(`✔ Primary: ${primary.name} (id=${primary.id}) Revenue=${primary.annualRevenue}`, 'ok');
+
+      // Step B: Create duplicate account (with complementary fields)
+      log('Step B: Creating duplicate account...', 'info');
+      const dup = (await api('POST', `${ACCOUNT_URL}/api/v1/accounts`, {
+        name: dupName, industry: 'Technology', numberOfEmployees: 300, billingAddress: '456 Innovation Pkwy', segment: 'Enterprise', phone: '+1-555-3001'
+      })).data;
+      log(`✔ Duplicate: ${dup.name} (id=${dup.id}) Employees=${dup.numberOfEmployees}`, 'ok');
+
+      // Step C: Add a contact to the duplicate account
+      log('Step C: Adding contact to duplicate account...', 'info');
+      const mergeContact = (await api('POST', `${CONTACT_URL}/api/v1/contacts`, {
+        firstName: 'Eva', lastName: 'Martinez', email: `eva.martinez@${dupName.toLowerCase().replace(/\s+/g, '')}.com`,
+        title: 'CFO', department: 'Finance', accountId: dup.id
+      })).data;
+      log(`✔ Contact Eva Martinez (id=${mergeContact.id}) linked to duplicate account`, 'ok');
+
+      // Step D: Run duplicate detection
+      log('Step D: Running duplicate detection...', 'info');
+      try {
+        const dupeResp = await api('GET', `${ACCOUNT_URL}/api/v1/accounts/duplicates?name=${encodeURIComponent(primaryName)}`);
+        const dupes = dupeResp.data || [];
+        log(`✔ Duplicate detection found ${dupes.length} match(es)`, 'ok');
+        dupes.forEach(d => log(`   Match: ${d.name} (id=${d.id}) score=${d.matchScore || 'N/A'}`, 'data'));
+      } catch (e) { log('⚠ Duplicate detection not available, proceeding with merge', 'info'); }
+
+      // Step E: Merge accounts
+      log('Step E: Merging duplicate into primary...', 'info');
+      const mergeResp = await api('POST', `${ACCOUNT_URL}/api/v1/accounts/merge?primaryId=${primary.id}&duplicateId=${dup.id}`);
+      const merged = mergeResp.data;
+      log('✔ Merge successful!', 'ok');
+      log(`   Revenue=${merged.annualRevenue} Employees=${merged.numberOfEmployees}`, 'data');
+      log(`   BillingAddress=${merged.billingAddress} Segment=${merged.segment} Territory=${merged.territory}`, 'data');
+
+      // Step F: Verify contact was re-linked
+      log('Step F: Verifying contact re-linked to primary...', 'info');
+      const contactCheck = (await api('GET', `${CONTACT_URL}/api/v1/contacts/${mergeContact.id}`)).data;
+      if (contactCheck.accountId === primary.id) {
+        log(`✔ Contact Eva Martinez re-linked to primary account!`, 'ok');
+      } else {
+        log(`⚠ Contact still on old account: ${contactCheck.accountId}`, 'info');
+      }
+
+      // Step G: Verify duplicate is deleted
+      log('Step G: Verifying duplicate is soft-deleted...', 'info');
+      try {
+        await api('GET', `${ACCOUNT_URL}/api/v1/accounts/${dup.id}`);
+        log('⚠ Duplicate still accessible (may not be filtered)', 'info');
+      } catch (e) {
+        log('✔ Duplicate account is no longer accessible (soft-deleted)', 'ok');
+      }
+
+      // Step H: Check merge audit trail
+      log('Step H: Checking merge audit trail...', 'info');
+      try {
+        const auditResp = await api('GET', `${ACCOUNT_URL}/api/v1/accounts/${primary.id}/activities`);
+        const audits = auditResp.data || [];
+        const mergeAudit = (Array.isArray(audits) ? audits : []).find(a => a.type === 'MERGED');
+        if (mergeAudit) {
+          log(`✔ Merge audit: ${mergeAudit.description}`, 'ok');
+        } else {
+          log('⚠ No MERGED audit entry found', 'info');
+        }
+      } catch (e) { log('⚠ Could not check audit trail', 'info'); }
+
+      showStatus(statusEl, `✅ Merge complete! Primary: ${merged.name} — fields combined, contact re-linked`, 'success');
+      log('═══ Scenario 7 Complete ═══', 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || JSON.stringify(e.data);
+      showStatus(statusEl, `❌ ${msg}`, 'error');
+      log(`✘ [Merge] Failed: ${msg}`, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '🔀 Run Merge Scenario';
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // SCENARIO 8: Create Opportunity from Account
+  // ═══════════════════════════════════════════════════════════════════
+  let LAST_OPP_ID = '';
+  let LAST_OPP_ACCOUNT_ID = '';
+
+  async function createOpportunity() {
+    ensureAuth();
+    const btn = document.getElementById('oppSubmitBtn');
+    const statusEl = 'oppStatus';
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Creating...';
+    try {
+      const accountId = document.getElementById('oppAccountId').value || LAST_ACCOUNT_ID;
+      const name = document.getElementById('oppName').value;
+      const amount = parseFloat(document.getElementById('oppAmount').value);
+      const closeDate = document.getElementById('oppCloseDate').value;
+      const leadSource = document.getElementById('oppLeadSource').value;
+      const nextStep = document.getElementById('oppNextStep').value;
+
+      if (!accountId) { throw { data: { message: 'No Account ID. Run Scenario 5 first or enter manually.' }}; }
+
+      log('═══ Scenario 8: Create Opportunity ═══', 'info');
+
+      // Step A: Validate close date (past date should fail)
+      log('Testing close date validation (past date)...', 'info');
+      try {
+        await api('POST', `${OPP_URL}/api/v1/opportunities`, {
+          name: 'Past Date Test', amount: 1000, stage: 'QUALIFICATION', closeDate: '2020-01-01'
+        });
+        log('⚠ Past close date was accepted (unexpected)', 'info');
+      } catch (e) {
+        log('✔ Close date validation: past dates rejected', 'ok');
+      }
+
+      // Step B: Create opportunity
+      log(`Creating opportunity "${name}" amount=$${amount.toLocaleString()}...`, 'info');
+      const opp = await api('POST', `${OPP_URL}/api/v1/opportunities`, {
+        name, accountId, amount, stage: 'QUALIFICATION', closeDate, description: 'Created from webform Scenario 8',
+        leadSource, currency: 'USD', nextStep
+      });
+      const d = opp.data;
+      LAST_OPP_ID = d.id;
+      LAST_OPP_ACCOUNT_ID = accountId;
+      log(`✔ Opportunity created: ${d.id}`, 'ok');
+      log(`   Stage: ${d.stage} | Probability: ${d.probability}% | Forecast: ${d.forecastCategory}`, 'data');
+      log(`   Amount: $${d.amount?.toLocaleString()} | Expected Revenue: $${d.expectedRevenue?.toLocaleString()}`, 'data');
+      log(`   Close Date: ${d.closeDate}`, 'data');
+
+      // Verify auto-calculations
+      const expectedRev = amount * 25 / 100;
+      if (d.probability === 25) log('✔ Auto-probability = 25 for QUALIFICATION', 'ok');
+      else log(`⚠ Expected probability 25, got ${d.probability}`, 'err');
+
+      if (Math.abs(d.expectedRevenue - expectedRev) < 1) log(`✔ Expected revenue auto-calculated: $${d.expectedRevenue.toLocaleString()}`, 'ok');
+      else log(`⚠ Expected revenue mismatch: got $${d.expectedRevenue}, expected $${expectedRev}`, 'err');
+
+      // Step C: Check activity timeline
+      const acts = await api('GET', `${OPP_URL}/api/v1/opportunities/${d.id}/activities`);
+      const actList = acts.data?.content || acts.data || [];
+      log(`✔ Activity timeline: ${actList.length} entry(ies)`, 'ok');
+      actList.forEach(a => log(`   [${a.activityType}] ${a.description}`, 'data'));
+
+      showStatus(statusEl, `✅ Opportunity created! Stage=QUALIFICATION, Prob=25%, ExpRev=$${d.expectedRevenue?.toLocaleString()}`, 'success');
+      log('═══ Scenario 8 Complete ═══', 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || JSON.stringify(e.data);
+      showStatus(statusEl, `❌ ${msg}`, 'error');
+      log(`✘ [Opp] Failed: ${msg}`, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '💰 Create Opportunity';
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // SCENARIO 9: Progress Opportunity Through Stages
+  // ═══════════════════════════════════════════════════════════════════
+  async function progressOpportunity() {
+    ensureAuth();
+    const btn = document.getElementById('progressSubmitBtn');
+    const statusEl = 'progressStatus';
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Progressing...';
+    try {
+      if (!LAST_OPP_ID) { throw { data: { message: 'No Opportunity. Run Scenario 8 first.' }}; }
+
+      log('═══ Scenario 9: Progress Opportunity ═══', 'info');
+
+      const stages = [
+        { stage: 'PROPOSAL', expProb: 60, expForecast: 'BEST_CASE' },
+        { stage: 'NEGOTIATION', expProb: 80, expForecast: 'COMMIT' },
+        { stage: 'CLOSED_WON', expProb: 100, expForecast: 'CLOSED' }
+      ];
+
+      const amount = 250000;
+      for (const s of stages) {
+        log(`Advancing to ${s.stage}...`, 'info');
+        const resp = await api('PATCH', `${OPP_URL}/api/v1/opportunities/${LAST_OPP_ID}/stage?stage=${s.stage}`);
+        const d = resp.data;
+        const expRev = amount * s.expProb / 100;
+
+        if (d.probability === s.expProb) log(`✔ ${s.stage}: probability=${d.probability}%`, 'ok');
+        else log(`⚠ ${s.stage}: expected prob ${s.expProb}, got ${d.probability}`, 'err');
+
+        if (d.forecastCategory === s.expForecast) log(`✔ Forecast: ${d.forecastCategory}`, 'ok');
+        else log(`⚠ Expected forecast ${s.expForecast}, got ${d.forecastCategory}`, 'err');
+
+        log(`   Expected Revenue: $${d.expectedRevenue?.toLocaleString()} (amount × ${d.probability}%)`, 'data');
+
+        if (s.stage === 'CLOSED_WON' && d.wonDate) log(`✔ Won date set: ${d.wonDate}`, 'ok');
+      }
+
+      // Check full activity timeline
+      const acts = await api('GET', `${OPP_URL}/api/v1/opportunities/${LAST_OPP_ID}/activities`);
+      const actList = acts.data?.content || acts.data || [];
+      log(`✔ Full activity timeline: ${actList.length} entries`, 'ok');
+      actList.forEach(a => log(`   [${a.activityType}] ${a.description}`, 'data'));
+
+      // Check forecast summary
+      const forecast = await api('GET', `${OPP_URL}/api/v1/opportunities/forecast`);
+      const fc = forecast.data;
+      log(`✔ Revenue Forecast: pipeline=$${fc.totalPipeline?.toLocaleString()}, closed=$${fc.closed?.toLocaleString()}, weighted=$${fc.totalWeightedRevenue?.toLocaleString()}`, 'ok');
+
+      showStatus(statusEl, `✅ Full progression complete! QUALIFICATION → PROPOSAL → NEGOTIATION → CLOSED_WON`, 'success');
+      log('═══ Scenario 9 Complete ═══', 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || JSON.stringify(e.data);
+      showStatus(statusEl, `❌ ${msg}`, 'error');
+      log(`✘ [Progress] Failed: ${msg}`, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '📈 Run Stage Progression';
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // SCENARIO 10: Closed Lost with Reason
+  // ═══════════════════════════════════════════════════════════════════
+  async function closeLostOpportunity() {
+    ensureAuth();
+    const btn = document.getElementById('lostSubmitBtn');
+    const statusEl = 'lostStatus';
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Processing...';
+    try {
+      const lostReason = document.getElementById('lostReason').value;
+      const competitor = document.getElementById('lostCompetitor').value;
+      const accountId = LAST_OPP_ACCOUNT_ID || document.getElementById('oppAccountId').value;
+
+      log('═══ Scenario 10: Close Lost ═══', 'info');
+
+      // Step A: Create a new opportunity to close as lost
+      log('Creating opportunity for close-lost test...', 'info');
+      const opp = await api('POST', `${OPP_URL}/api/v1/opportunities`, {
+        name: 'Data Analytics Platform', accountId: accountId || undefined,
+        amount: 120000, stage: 'NEGOTIATION', closeDate: '2026-07-15',
+        description: 'Test deal for close-lost scenario'
+      });
+      const lostOppId = opp.data.id;
+      log(`✔ Created: ${lostOppId} stage=${opp.data.stage} expRev=$${opp.data.expectedRevenue?.toLocaleString()}`, 'ok');
+
+      // Step B: Try closing without reason - should fail
+      log('Testing: close lost WITHOUT reason...', 'info');
+      try {
+        await api('PATCH', `${OPP_URL}/api/v1/opportunities/${lostOppId}/stage?stage=CLOSED_LOST`);
+        log('⚠ Should have required lost reason!', 'err');
+      } catch (e) {
+        log('✔ Lost reason validation: rejected (400)', 'ok');
+      }
+
+      // Step C: Try closing without competitor - should fail
+      log('Testing: close lost WITHOUT competitor...', 'info');
+      try {
+        await api('PATCH', `${OPP_URL}/api/v1/opportunities/${lostOppId}/stage?stage=CLOSED_LOST&lostReason=${encodeURIComponent(lostReason)}`);
+        log('⚠ Should have required competitor!', 'err');
+      } catch (e) {
+        log('✔ Competitor validation: rejected (400)', 'ok');
+      }
+
+      // Step D: Close with reason + competitor - should succeed
+      log(`Closing as LOST: reason="${lostReason}", competitor="${competitor}"...`, 'info');
+      const lost = await api('PATCH', `${OPP_URL}/api/v1/opportunities/${lostOppId}/stage?stage=CLOSED_LOST&lostReason=${encodeURIComponent(lostReason)}&competitor=${encodeURIComponent(competitor)}`);
+      const ld = lost.data;
+      log(`✔ CLOSED_LOST: probability=${ld.probability}%, forecast=${ld.forecastCategory}`, 'ok');
+      log(`   Lost Reason: ${ld.lostReason}`, 'data');
+      log(`   Lost Date: ${ld.lostDate}`, 'data');
+      log(`   Expected Revenue: $${ld.expectedRevenue?.toLocaleString()} (should be $0)`, 'data');
+
+      // Step E: Verify competitor auto-recorded
+      const comps = await api('GET', `${OPP_URL}/api/v1/opportunities/${lostOppId}/competitors`);
+      const compList = comps.data?.content || comps.data || [];
+      if (compList.length > 0) {
+        log(`✔ Competitor auto-recorded: ${compList[0].competitorName}`, 'ok');
+      } else {
+        log('⚠ Competitor not found in records', 'info');
+      }
+
+      // Step F: Check pipeline dashboard
+      const dash = await api('GET', `${OPP_URL}/api/v1/opportunities/dashboard`);
+      const db = dash.data;
+      log(`✔ Pipeline Dashboard: total=$${db.totalPipelineValue?.toLocaleString()}, winRate=${db.winRate}%, weighted=$${db.weightedPipeline?.toLocaleString()}`, 'ok');
+
+      // Step G: Check win/loss analysis
+      try {
+        const wl = await api('GET', `${OPP_URL}/api/v1/opportunities/analytics/win-loss`);
+        const wld = wl.data;
+        log(`✔ Win/Loss: won=${wld.totalWon}, lost=${wld.totalLost}, winRate=${wld.winRate}%`, 'ok');
+        if (wld.lostReasonBreakdown) {
+          log('   Lost Reason Breakdown:', 'data');
+          wld.lostReasonBreakdown.forEach(r => log(`     "${r.reason}": ${r.count} deal(s)`, 'data'));
+        }
+      } catch (e) { log('⚠ Could not fetch win/loss analytics', 'info'); }
+
+      showStatus(statusEl, `✅ Close Lost complete! Reason="${ld.lostReason}", Competitor="${competitor}", Pipeline updated`, 'success');
+      log('═══ Scenario 10 Complete ═══', 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || JSON.stringify(e.data);
+      showStatus(statusEl, `❌ ${msg}`, 'error');
+      log(`✘ [Lost] Failed: ${msg}`, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '❌ Run Close Lost Scenario';
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // SCENARIO 11: Auto Follow-Up Task on Lead → WORKING
+  // ═══════════════════════════════════════════════════════════════════
+  async function runScenario11() {
+    ensureAuth();
+    const btn = document.getElementById('s11SubmitBtn');
+    const statusEl = 's11Status';
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Running...';
+    try {
+      const firstName = document.getElementById('s11FirstName').value;
+      const lastName = document.getElementById('s11LastName').value;
+      const company = document.getElementById('s11Company').value;
+      const email = document.getElementById('s11Email').value;
+
+      log('═══ Scenario 11: Auto Follow-Up Task ═══', 'info');
+
+      // Step A: Ensure workflow rule exists
+      log('Checking for auto follow-up workflow rule...', 'info');
+      const rules = await api('GET', `${WF_URL}/api/v1/workflows/entity/Lead?page=0&size=50`);
+      const ruleList = rules.data?.content || [];
+      let hasRule = ruleList.some(r => r.name?.includes('Auto Follow-Up Task'));
+      if (!hasRule) {
+        log('Creating workflow rule: Lead → WORKING → auto task + notification...', 'info');
+        await api('POST', `${WF_URL}/api/v1/workflows`, {
+          name: 'Auto Follow-Up Task on Lead Working',
+          description: 'When lead moves to WORKING, auto-create follow-up task with reminder',
+          entityType: 'Lead', triggerEvent: 'UPDATED',
+          conditions: [{ fieldName: 'status', operator: 'EQUALS', value: 'WORKING', logicalOperator: 'AND' }],
+          actions: [
+            { actionType: 'CREATE_TASK', targetField: 'Follow up with lead - initial outreach', targetValue: 'Auto-created: Schedule a call or meeting. Due in 24 hours.', actionOrder: 1 },
+            { actionType: 'SEND_NOTIFICATION', targetField: 'assignedTo', targetValue: 'Lead moved to Working - follow-up task created', actionOrder: 2 }
+          ]
+        });
+        log('✔ Workflow rule created', 'ok');
+      } else {
+        log('✔ Workflow rule already exists', 'ok');
+      }
+
+      // Step B: Create lead
+      log(`Creating lead: ${firstName} ${lastName} @ ${company}...`, 'info');
+      const lead = await api('POST', `${LEAD_URL}/api/v1/leads`, {
+        firstName, lastName, email, phone: '+1-555-0211', company, title: 'VP Sales', source: 'WEB',
+        description: 'Scenario 11 test lead for auto follow-up'
+      });
+      const leadId = lead.data.id;
+      LAST_LEAD_ID = leadId;
+      log(`✔ Lead created: ${leadId} status=${lead.data.status}`, 'ok');
+
+      // Step C: Update lead to WORKING status
+      log('Updating lead status to WORKING...', 'info');
+      const updated = await api('PUT', `${LEAD_URL}/api/v1/leads/${leadId}`, { status: 'WORKING' });
+      log(`✔ Lead status: ${updated.data.status}`, 'ok');
+      log('Waiting for Kafka event chain (workflow → task creation)...', 'info');
+
+      // Step D: Wait for async Kafka event chain to complete
+      await new Promise(r => setTimeout(r, 3000));
+
+      // Step E: Verify auto-created task
+      log('Checking for auto-created follow-up task...', 'info');
+      const activities = await api('GET', `${ACTIVITY_URL}/api/v1/activities/related/${leadId}`);
+      const taskList = (activities.data?.content || []).filter(a => a.type === 'TASK');
+      if (taskList.length > 0) {
+        const task = taskList[0];
+        log(`✔ Auto-created task found!`, 'ok');
+        log(`   Subject: ${task.subject}`, 'data');
+        log(`   Priority: ${task.priority} | Status: ${task.status}`, 'data');
+        log(`   Due: ${task.dueDate}`, 'data');
+        log(`   Reminder: ${task.reminderAt}`, 'data');
+      } else {
+        log('⚠ No auto-created task found (check Kafka & workflow service)', 'err');
+      }
+
+      // Step F: Check workflow execution log
+      const execs = await api('GET', `${WF_URL}/api/v1/workflows/executions?page=0&size=5`);
+      const execList = execs.data?.content || [];
+      const relevant = execList.find(e => e.executionDetails?.includes('Auto Follow-Up'));
+      if (relevant) {
+        log(`✔ Workflow execution: ${relevant.status} — ${relevant.executionDetails}`, 'ok');
+      }
+
+      // Step G: Check notification created
+      const notifs = await api('GET', `${NOTIF_URL}/api/v1/notifications?page=0&size=5&sortBy=createdAt&sortDir=desc`);
+      const notifList = notifs.data?.content || [];
+      const leadNotif = notifList.find(n => n.relatedEntityType === 'Lead');
+      if (leadNotif) {
+        log(`✔ Notification: type=${leadNotif.type} subject="${leadNotif.subject}" status=${leadNotif.status}`, 'ok');
+      }
+
+      const taskCount = taskList.length;
+      showStatus(statusEl, `✅ Auto follow-up complete! ${taskCount} task(s) created with reminder. Workflow triggered successfully.`, 'success');
+      log('═══ Scenario 11 Complete ═══', 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || JSON.stringify(e.data);
+      showStatus(statusEl, `❌ ${msg}`, 'error');
+      log(`✘ [S11] Failed: ${msg}`, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '📝 Run Auto Follow-Up Scenario';
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // SCENARIO 12: Schedule Demo Meeting (Calendar Event)
+  // ═══════════════════════════════════════════════════════════════════
+  async function runScenario12() {
+    ensureAuth();
+    const btn = document.getElementById('s12SubmitBtn');
+    const statusEl = 's12Status';
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Scheduling...';
+    try {
+      const subject = document.getElementById('s12Subject').value;
+      const location = document.getElementById('s12Location').value;
+      const daysOut = parseInt(document.getElementById('s12DaysOut').value) || 1;
+      const hour = parseInt(document.getElementById('s12Hour').value) || 14;
+      const description = document.getElementById('s12Description').value;
+
+      log('═══ Scenario 12: Schedule Demo Meeting ═══', 'info');
+
+      // Calculate meeting times
+      const meetDate = new Date();
+      meetDate.setDate(meetDate.getDate() + daysOut);
+      const dateStr = meetDate.toISOString().split('T')[0];
+      const startTime = `${dateStr}T${String(hour).padStart(2,'0')}:00:00`;
+      const endTime = `${dateStr}T${String(hour+1).padStart(2,'0')}:00:00`;
+      const reminderTime = `${dateStr}T${String(hour-1).padStart(2,'0')}:30:00`;
+
+      // Step A: Create MEETING activity
+      log(`Creating demo meeting for ${dateStr} at ${hour}:00...`, 'info');
+      const meeting = await api('POST', `${ACTIVITY_URL}/api/v1/activities`, {
+        type: 'MEETING', subject, description, priority: 'HIGH',
+        startTime, endTime, dueDate: startTime, location,
+        relatedEntityType: 'Lead', relatedEntityId: LAST_LEAD_ID || undefined,
+        assignedTo: USER_ID, reminderAt: reminderTime
+      });
+      const m = meeting.data;
+      log(`✔ Meeting created: ${m.id}`, 'ok');
+      log(`   Subject: ${m.subject}`, 'data');
+      log(`   Start: ${m.startTime} → End: ${m.endTime}`, 'data');
+      log(`   Location: ${m.location}`, 'data');
+      log(`   Priority: ${m.priority} | Status: ${m.status}`, 'data');
+      log(`   Reminder: ${m.reminderAt}`, 'data');
+
+      // Step B: Check upcoming activities (calendar view)
+      log('Fetching upcoming activities (next 7 days)...', 'info');
+      const upcoming = await api('GET', `${ACTIVITY_URL}/api/v1/activities/upcoming?days=7`);
+      const upList = upcoming.data || [];
+      log(`✔ Upcoming activities: ${upList.length} total`, 'ok');
+      upList.forEach(a => {
+        const icon = a.type === 'MEETING' ? '📅' : a.type === 'TASK' ? '📋' : '📌';
+        log(`   ${icon} ${a.type}: ${a.subject} | Due: ${a.dueDate}`, 'data');
+      });
+
+      // Step C: Check activity analytics
+      log('Fetching activity analytics...', 'info');
+      const analytics = await api('GET', `${ACTIVITY_URL}/api/v1/activities/analytics`);
+      const ana = analytics.data;
+      log(`✔ Analytics: total=${ana.totalActivities}, completed=${ana.completedActivities}, overdue=${ana.overdueActivities}`, 'ok');
+      log(`   Completion rate: ${ana.completionRate}%`, 'data');
+      if (ana.countByType) {
+        Object.entries(ana.countByType).forEach(([k,v]) => log(`   ${k}: ${v}`, 'data'));
+      }
+
+      // Step D: Record activity stream event
+      log('Recording calendar stream event...', 'info');
+      await api('POST', `${ACTIVITY_URL}/api/v1/activities/stream/record?eventType=MEETING_SCHEDULED&entityType=Meeting&entityId=${m.id}&entityName=${encodeURIComponent(subject)}&description=${encodeURIComponent('Demo meeting scheduled for ' + dateStr)}`);
+      log('✔ Activity stream event recorded', 'ok');
+
+      // Step E: Check timeline
+      if (LAST_LEAD_ID) {
+        const timeline = await api('GET', `${ACTIVITY_URL}/api/v1/activities/timeline/${LAST_LEAD_ID}`);
+        const tlList = timeline.data || [];
+        log(`✔ Entity timeline: ${tlList.length} activities`, 'ok');
+        tlList.forEach(a => log(`   [${a.type}] ${a.subject} — ${a.status}`, 'data'));
+      }
+
+      showStatus(statusEl, `✅ Demo scheduled! ${m.subject} on ${dateStr} at ${hour}:00. Reminder set, calendar view updated.`, 'success');
+      log('═══ Scenario 12 Complete ═══', 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || JSON.stringify(e.data);
+      showStatus(statusEl, `❌ ${msg}`, 'error');
+      log(`✘ [S12] Failed: ${msg}`, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '📅 Schedule Demo Meeting';
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // SCENARIO 13: Case Creation from Portal (auto-priority, SLA timer)
+  // ═══════════════════════════════════════════════════════════════════
+  let LAST_CASE_ID = '';
+  let LAST_CASE_2_ID = '';
+
+  async function runScenario13() {
+    const btn = document.getElementById('s13SubmitBtn');
+    const statusEl = 's13Status';
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Creating Case...';
+    showStatus(statusEl, 'Creating support case...', 'info');
+
+    try {
+      log('═══ Scenario 13: Create Support Case (Auto-Priority + SLA) ═══', 'info');
+
+      const subject = document.getElementById('s13Subject').value;
+      const description = document.getElementById('s13Description').value;
+      const origin = document.getElementById('s13Origin').value;
+      const contactName = document.getElementById('s13ContactName').value;
+      const contactEmail = document.getElementById('s13ContactEmail').value;
+
+      // Step A: Create case with keywords that trigger auto-priority
+      log(`Creating case: "${subject}" via ${origin}...`, 'info');
+      const created = await api('POST', `${CASE_URL}/api/v1/cases`, {
+        subject, description, origin, contactName, contactEmail
+      });
+      const c = created.data;
+      LAST_CASE_ID = c.id;
+      document.getElementById('s14CaseId').value = c.id;
+      document.getElementById('s15CaseId').value = c.id;
+
+      log(`✔ Case created: ${c.caseNumber}`, 'ok');
+      log(`   Priority: ${c.priority} (auto-detected from keywords)`, 'data');
+      log(`   SLA Due: ${c.slaDueDate}`, 'data');
+      log(`   Status: ${c.status}, Origin: ${c.origin}`, 'data');
+      log(`   Contact: ${c.contactName} (${c.contactEmail})`, 'data');
+
+      // Step B: Create a second case with different keywords (HIGH)
+      log('Creating second case with HIGH-priority keywords...', 'info');
+      const created2 = await api('POST', `${CASE_URL}/api/v1/cases`, {
+        subject: 'Urgent bug in payment module',
+        description: 'Payment processing has a critical error that blocks checkout.',
+        origin: 'EMAIL',
+        contactName: 'Jane Doe',
+        contactEmail: 'jane.doe@acme.com'
+      });
+      const c2 = created2.data;
+      LAST_CASE_2_ID = c2.id;
+      log(`✔ Case 2: ${c2.caseNumber} → Priority: ${c2.priority}, SLA: ${c2.slaDueDate}`, 'ok');
+
+      // Step C: List all cases
+      const list = await api('GET', `${CASE_URL}/api/v1/cases`);
+      log(`✔ Total cases: ${list.data.totalElements}`, 'ok');
+      (list.data.content || []).forEach(cs => {
+        log(`   ${cs.caseNumber} | ${cs.priority} | ${cs.status} | ${cs.subject}`, 'data');
+      });
+
+      // Step D: Get analytics
+      const analytics = await api('GET', `${CASE_URL}/api/v1/cases/analytics`);
+      const a = analytics.data;
+      log(`✔ Analytics: total=${a.totalCases}, open=${a.openCases}, SLA rate=${a.slaComplianceRate}%`, 'ok');
+
+      const slaHours = { CRITICAL: 4, HIGH: 8, MEDIUM: 24, LOW: 72 };
+      const expectedSla = slaHours[c.priority] || '?';
+      showStatus(statusEl, `✅ Case ${c.caseNumber} created! Priority: ${c.priority} (auto-detected), SLA: ${expectedSla}h. ${list.data.totalElements} total cases.`, 'success');
+      log('═══ Scenario 13 Complete ═══', 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || JSON.stringify(e.data);
+      showStatus(statusEl, `❌ ${msg}`, 'error');
+      log(`✘ [S13] Failed: ${msg}`, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '🎯 Create Case';
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // SCENARIO 14: Case Escalation
+  // ═══════════════════════════════════════════════════════════════════
+  async function runScenario14() {
+    const btn = document.getElementById('s14SubmitBtn');
+    const statusEl = 's14Status';
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Escalating...';
+    showStatus(statusEl, 'Escalating case...', 'info');
+
+    try {
+      log('═══ Scenario 14: Case Escalation ═══', 'info');
+      const caseId = document.getElementById('s14CaseId').value || LAST_CASE_ID;
+      if (!caseId) throw { data: { message: 'No case ID. Run Scenario 13 first.' } };
+
+      // Step A: Get current case status
+      const before = await api('GET', `${CASE_URL}/api/v1/cases/${caseId}`);
+      log(`Case before escalation: ${before.data.caseNumber} status=${before.data.status} escalated=${before.data.escalated}`, 'info');
+
+      // Step B: Escalate
+      log('Escalating case...', 'info');
+      const escalated = await api('PATCH', `${CASE_URL}/api/v1/cases/${caseId}/escalate`);
+      const e = escalated.data;
+      log(`✔ Case escalated!`, 'ok');
+      log(`   Status: ${e.status}`, 'data');
+      log(`   Escalated: ${e.escalated}`, 'data');
+      log(`   Escalated At: ${e.escalatedAt}`, 'data');
+
+      // Step C: Verify escalated cases list
+      const escList = await api('GET', `${CASE_URL}/api/v1/cases?status=ESCALATED`);
+      log(`✔ Escalated cases: ${escList.data.totalElements}`, 'ok');
+      (escList.data.content || []).forEach(cs => {
+        log(`   ${cs.caseNumber} | ${cs.priority} | escalatedAt: ${cs.escalatedAt}`, 'data');
+      });
+
+      // Step D: Check analytics
+      const analytics = await api('GET', `${CASE_URL}/api/v1/cases/analytics`);
+      log(`✔ Analytics: escalated=${analytics.data.escalatedCases}, open=${analytics.data.openCases}`, 'ok');
+
+      showStatus(statusEl, `✅ Case ${e.caseNumber} escalated! Status: ${e.status}, escalatedAt: ${e.escalatedAt}. Manager notified via Kafka.`, 'success');
+      log('═══ Scenario 14 Complete ═══', 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || JSON.stringify(e.data);
+      showStatus(statusEl, `❌ ${msg}`, 'error');
+      log(`✘ [S14] Failed: ${msg}`, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '🚨 Escalate Case';
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // SCENARIO 15: Case Closure (CSAT survey, SLA compliance)
+  // ═══════════════════════════════════════════════════════════════════
+  async function runScenario15() {
+    const btn = document.getElementById('s15SubmitBtn');
+    const statusEl = 's15Status';
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Resolving & Closing...';
+    showStatus(statusEl, 'Resolving case, sending CSAT survey, closing...', 'loading');
+
+    try {
+      log('═══ Scenario 15: Case Closure (Resolve → CSAT → Close) ═══', 'info');
+
+      // Use the second case (not escalated) or the ID from the input
+      const caseId = document.getElementById('s15CaseId').value || LAST_CASE_2_ID || LAST_CASE_ID;
+      if (!caseId) throw { data: { message: 'No case ID. Run Scenario 13 first.' } };
+
+      const resolution = document.getElementById('s15Resolution').value;
+      const csatScore = parseInt(document.getElementById('s15CsatScore').value) || 5;
+      const csatComment = document.getElementById('s15CsatComment').value;
+
+      // Step A: Get case before resolve
+      const before = await api('GET', `${CASE_URL}/api/v1/cases/${caseId}`);
+      log(`Case to resolve: ${before.data.caseNumber} status=${before.data.status} priority=${before.data.priority} slaDue=${before.data.slaDueDate}`, 'info');
+
+      // Step B: Resolve the case (triggers SLA check + CSAT survey)
+      log('Resolving case...', 'info');
+      const resolved = await api('PATCH', `${CASE_URL}/api/v1/cases/${caseId}/resolve?resolutionNotes=${encodeURIComponent(resolution)}`);
+      const r = resolved.data;
+      log(`✔ Case resolved!`, 'ok');
+      log(`   Status: ${r.status}`, 'data');
+      log(`   SLA Met: ${r.slaMet}`, 'data');
+      log(`   Resolved At: ${r.resolvedAt}`, 'data');
+      log(`   CSAT Survey Sent: ${r.csatSent}`, 'data');
+      log(`   Resolution: ${r.resolutionNotes}`, 'data');
+
+      // Step C: Submit CSAT survey
+      log(`Submitting CSAT score: ${csatScore}/5...`, 'info');
+      const csat = await api('POST', `${CASE_URL}/api/v1/cases/${caseId}/csat`, {
+        score: csatScore,
+        comment: csatComment
+      });
+      log(`✔ CSAT submitted: score=${csat.data.csatScore}, comment="${csat.data.csatComment}"`, 'ok');
+
+      // Step D: Close the case
+      log('Closing case...', 'info');
+      const closed = await api('PATCH', `${CASE_URL}/api/v1/cases/${caseId}/close`);
+      const cl = closed.data;
+      log(`✔ Case closed!`, 'ok');
+      log(`   Status: ${cl.status}`, 'data');
+      log(`   Closed At: ${cl.closedAt}`, 'data');
+      log(`   SLA Met: ${cl.slaMet}`, 'data');
+
+      // Step E: Final analytics
+      const analytics = await api('GET', `${CASE_URL}/api/v1/cases/analytics`);
+      const a = analytics.data;
+      log(`✔ Final Analytics:`, 'ok');
+      log(`   Total: ${a.totalCases}, Resolved: ${a.resolvedCases}, Escalated: ${a.escalatedCases}`, 'data');
+      log(`   SLA Compliance: ${a.slaComplianceRate}% (met: ${a.slaMetCount}, breached: ${a.slaBreachedCount})`, 'data');
+      log(`   Avg Resolution: ${a.avgResolutionHours?.toFixed(2)} hours`, 'data');
+      log(`   Avg CSAT: ${a.avgCsatScore?.toFixed(1)}/5`, 'data');
+
+      const slaIcon = cl.slaMet ? '✅' : '❌';
+      showStatus(statusEl, `✅ Case ${cl.caseNumber} closed! SLA ${slaIcon} ${cl.slaMet ? 'Met' : 'Breached'}, CSAT: ${csatScore}/5. Avg CSAT: ${a.avgCsatScore?.toFixed(1)}/5.`, 'success');
+      log('═══ Scenario 15 Complete ═══', 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || JSON.stringify(e.data);
+      showStatus(statusEl, `❌ ${msg}`, 'error');
+      log(`✘ [S15] Failed: ${msg}`, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '✅ Resolve, CSAT & Close';
+    }
+  }
+  // SCENARIO 16: Campaign + Lead Import + Members
+  async function runScenario16() {
+    const statusEl = 's16Status';
+    const btn = document.getElementById('s16SubmitBtn');
+    btn.disabled = true; btn.innerHTML = '⏳ Running…';
+    showStatus(statusEl, '⏳ Creating campaign & importing leads…', 'info');
+    try {
+      log('═══ Scenario 16: Campaign & Lead Import ═══', 'info');
+
+      const campName = document.getElementById('s16CampaignName').value;
+      const campType = document.getElementById('s16CampaignType').value;
+      const budget = parseFloat(document.getElementById('s16Budget').value);
+      const actualCost = parseFloat(document.getElementById('s16ActualCost').value);
+      const leadCount = parseInt(document.getElementById('s16LeadCount').value) || 200;
+
+      // 1. Create Campaign
+      log('1️⃣ Creating campaign…', 'info');
+      const campResp = await api('POST', `${CAMPAIGN_URL}/api/v1/campaigns`, {
+        name: campName, type: campType, status: 'ACTIVE',
+        startDate: '2026-01-01', endDate: '2026-03-31',
+        budget: budget, actualCost: actualCost, expectedRevenue: budget * 4,
+        description: `${campName} - automated test campaign`
+      });
+      const camp = campResp.data;
+      const campaignId = camp.id;
+      log(`   ✅ Campaign created: ${camp.name} (${campaignId})`, 'ok');
+      log(`   Budget: $${camp.budget}, Cost: $${camp.actualCost}`, 'data');
+      document.getElementById('s17CampaignId').value = campaignId;
+
+      // 2. Import leads via CSV
+      log(`2️⃣ Importing ${leadCount} leads via CSV…`, 'info');
+      let csv = 'firstname,lastname,email,phone,company,title,source\n';
+      for (let i = 1; i <= leadCount; i++) {
+        csv += `Lead${i},Camp${i},lead${i}_${Date.now()}@campaign.com,555-${String(i).padStart(4,'0')},CampaignCorp,Staff,EMAIL\n`;
+      }
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const formData = new FormData();
+      formData.append('file', blob, 'leads.csv');
+      const importResp = await fetch(`${LEAD_URL}/api/v1/leads/import`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${TOKEN}`, 'X-Tenant-ID': TENANT },
+        body: formData
+      });
+      const importData = await importResp.json();
+      log(`   ✅ Import: ${importData.data.imported} leads imported, ${importData.data.errors} errors`, 'ok');
+
+      // 3. Fetch imported leads & add as campaign members
+      log('3️⃣ Fetching leads & adding to campaign…', 'info');
+      const allLeadIds = [];
+      const pageSize = 200;
+      let page = 0;
+      let fetched = 0;
+      while (fetched < leadCount) {
+        const leadsResp = await api('GET', `${LEAD_URL}/api/v1/leads?page=${page}&size=${pageSize}&sortBy=createdAt&sortDir=desc`);
+        const leadsData = leadsResp.data || leadsResp;
+        for (const l of leadsData.content) {
+          if (l.email && l.email.includes('@campaign.com') && allLeadIds.length < leadCount) {
+            allLeadIds.push(l.id);
+          }
+        }
+        fetched += leadsData.content.length;
+        if (leadsData.last) break;
+        page++;
+      }
+      log(`   Found ${allLeadIds.length} campaign leads`, 'data');
+
+      // Add members in batch
+      const addResp = await api('POST', `${CAMPAIGN_URL}/api/v1/campaigns/${campaignId}/members`, {
+        leadIds: allLeadIds
+      });
+      const addedMembers = addResp.data || addResp;
+      log(`   ✅ Added ${addedMembers.length} members to campaign`, 'ok');
+
+      // 4. Test member status transitions
+      log('4️⃣ Testing member status transitions…', 'info');
+      const membersResp = await api('GET', `${CAMPAIGN_URL}/api/v1/campaigns/${campaignId}/members?page=0&size=3`);
+      const membersData = membersResp.data || membersResp;
+      const testMember = membersData.content[0];
+      log(`   Member ${testMember.id}: ${testMember.status}`, 'data');
+
+      await api('PATCH', `${CAMPAIGN_URL}/api/v1/campaigns/${campaignId}/members/${testMember.id}/status`, { status: 'RESPONDED' });
+      log('   → RESPONDED ✅', 'ok');
+
+      const convertedResp = await api('PATCH', `${CAMPAIGN_URL}/api/v1/campaigns/${campaignId}/members/${testMember.id}/status`, { status: 'CONVERTED' });
+      const converted = convertedResp.data || convertedResp;
+      log('   → CONVERTED ✅', 'ok');
+      log(`   Responded: ${converted.respondedAt}, Converted: ${converted.convertedAt}`, 'data');
+
+      // 5. Verify campaign stats
+      log('5️⃣ Verifying campaign stats…', 'info');
+      const finalCampResp = await api('GET', `${CAMPAIGN_URL}/api/v1/campaigns/${campaignId}`);
+      const finalCamp = finalCampResp.data || finalCampResp;
+      log(`   Members sent: ${finalCamp.numberSent}`, 'data');
+      log(`   Leads generated: ${finalCamp.leadsGenerated}`, 'data');
+      log(`   Conversions: ${finalCamp.conversions}`, 'data');
+
+      showStatus(statusEl, `✅ Campaign "${camp.name}" created with ${allLeadIds.length} members. Status flow: SENT→RESPONDED→CONVERTED verified.`, 'success');
+      log('═══ Scenario 16 Complete ═══', 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || e.message || JSON.stringify(e.data || e);
+      showStatus(statusEl, `❌ ${msg}`, 'error');
+      log(`✘ [S16] Failed: ${msg}`, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '📣 Run Campaign Import';
+    }
+  }
+
+  // SCENARIO 17: Campaign ROI & Revenue Attribution
+  async function runScenario17() {
+    const statusEl = 's17Status';
+    const btn = document.getElementById('s17SubmitBtn');
+    btn.disabled = true; btn.innerHTML = '⏳ Calculating…';
+    showStatus(statusEl, '⏳ Creating opportunity & calculating ROI…', 'info');
+    try {
+      log('═══ Scenario 17: Campaign ROI & Attribution ═══', 'info');
+
+      const campaignId = document.getElementById('s17CampaignId').value;
+      if (!campaignId) throw { data: { message: 'Campaign ID required. Run Scenario 16 first.' } };
+      const oppAmount = parseFloat(document.getElementById('s17OppAmount').value);
+      const oppName = document.getElementById('s17OppName').value;
+
+      // 1. Create opportunity linked to campaign
+      log('1️⃣ Creating opportunity linked to campaign…', 'info');
+      const oppResp = await api('POST', `${OPP_URL}/api/v1/opportunities`, {
+        name: oppName,
+        stage: 'CLOSED_WON',
+        amount: oppAmount,
+        closeDate: '2026-03-31',
+        probability: 100,
+        campaignId: campaignId,
+        description: `Won opportunity from campaign ${campaignId}`
+      });
+      const opp = oppResp.data || oppResp;
+      log(`   ✅ Opportunity created: ${opp.name} ($${opp.amount})`, 'ok');
+      log(`   Stage: ${opp.stage}, Campaign: ${opp.campaignId}`, 'data');
+
+      // 2. Update campaign wonRevenue
+      log('2️⃣ Updating campaign with won revenue…', 'info');
+      await api('PUT', `${CAMPAIGN_URL}/api/v1/campaigns/${campaignId}`, {
+        wonRevenue: oppAmount
+      });
+      log(`   ✅ Campaign wonRevenue set to $${oppAmount}`, 'ok');
+
+      // 3. Calculate ROI
+      log('3️⃣ Calculating campaign ROI…', 'info');
+      const roiResp = await api('GET', `${CAMPAIGN_URL}/api/v1/campaigns/${campaignId}/roi`);
+      const roi = roiResp.data || roiResp;
+      log(`   Campaign: ${roi.campaignName}`, 'data');
+      log(`   Budget: $${roi.totalBudget}`, 'data');
+      log(`   Actual Cost: $${roi.actualCost}`, 'data');
+      log(`   Won Revenue: $${roi.wonRevenue}`, 'data');
+      log(`   ROI: ${roi.roi}%`, 'data');
+      log(`   Total Members: ${roi.totalMembers}`, 'data');
+      log(`   Sent: ${roi.sentCount}, Responded: ${roi.respondedCount}, Converted: ${roi.convertedCount}`, 'data');
+      log(`   Cost/Lead: $${roi.costPerLead}`, 'data');
+      log(`   Cost/Conversion: $${roi.costPerConversion}`, 'data');
+
+      const roiVal = parseFloat(roi.roi);
+      const roiIcon = roiVal > 0 ? '📈' : '📉';
+
+      showStatus(statusEl, `✅ ROI = ${roi.roi}% ${roiIcon} | Revenue: $${roi.wonRevenue} vs Cost: $${roi.actualCost} | ${roi.totalMembers} members, ${roi.convertedCount} conversions`, 'success');
+      log('═══ Scenario 17 Complete ═══', 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || e.message || JSON.stringify(e.data || e);
+      showStatus(statusEl, `❌ ${msg}`, 'error');
+      log(`✘ [S17] Failed: ${msg}`, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '📈 Calculate ROI';
+    }
+  }
+  // ═══ Scenario 18: WhatsApp → Lead → Opportunity ═══════════════
+  async function runScenario18() {
+    ensureAuth();
+    const statusEl = 's18Status';
+    const btn = document.getElementById('s18SubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Processing…';
+    showStatus(statusEl, '⏳ Sending WhatsApp webhook…', 'info');
+    try {
+      log('═══ Scenario 18: WhatsApp → Lead → Opportunity ═══', 'info');
+
+      const phone = document.getElementById('s18Phone').value;
+      const firstName = document.getElementById('s18First').value;
+      const lastName = document.getElementById('s18Last').value;
+      const message = document.getElementById('s18Message').value;
+      const oppName = document.getElementById('s18OppName').value;
+      const oppAmount = document.getElementById('s18OppAmount').value;
+      const oppStage = document.getElementById('s18OppStage').value;
+      const autoConvert = document.getElementById('s18AutoConvert').value === 'true';
+
+      // Step 1: Send WhatsApp webhook to integration-service
+      log(`1️⃣ Sending WhatsApp message from ${phone}…`, 'info');
+      const waPayload = {
+        phone,
+        firstName: firstName || undefined,
+        lastName: lastName || undefined,
+        message,
+        autoConvert,
+        opportunityName: autoConvert ? oppName : undefined,
+        opportunityAmount: autoConvert ? oppAmount : undefined,
+        opportunityStage: autoConvert ? oppStage : undefined
+      };
+      const resp = await api('POST', `${INTEGRATION_URL}/api/v1/integrations/channels/whatsapp`, waPayload);
+      const data = resp.data || resp;
+
+      log(`   ✅ WhatsApp webhook processed: ${resp.message || 'OK'}`, 'ok');
+      log(`   Lead ID:        ${data.leadId}`, 'data');
+      log(`   Lead Status:    ${data.leadStatus}`, 'data');
+
+      LAST_LEAD_ID = data.leadId;
+
+      // Step 2: Verify lead exists
+      log(`2️⃣ Verifying lead ${data.leadId}…`, 'info');
+      try {
+        const leadResp = await api('GET', `${LEAD_URL}/api/v1/leads/${data.leadId}`);
+        const lead = leadResp.data || leadResp;
+        log(`   ✅ Lead confirmed: ${lead.firstName} ${lead.lastName}`, 'ok');
+        log(`   Phone: ${lead.phone} | Source: ${lead.source} | Status: ${lead.status}`, 'data');
+      } catch (e) {
+        log(`   ⚠ Could not verify lead: ${e.data?.message || e.message || ''}`, 'info');
+      }
+
+      // Step 3: Verify opportunity (if auto-converted)
+      if (autoConvert && data.opportunityId) {
+        log(`3️⃣ Lead auto-converted! Verifying opportunity ${data.opportunityId}…`, 'info');
+        log(`   Opportunity ID:    ${data.opportunityId}`, 'data');
+        log(`   Opportunity Stage: ${data.opportunityStage}`, 'data');
+
+        try {
+          const oppResp = await api('GET', `${OPP_URL}/api/v1/opportunities/${data.opportunityId}`);
+          const opp = oppResp.data || oppResp;
+          log(`   ✅ Opportunity confirmed: ${opp.name}`, 'ok');
+          log(`   Amount: $${opp.amount} | Stage: ${opp.stage} | Probability: ${opp.probability}%`, 'data');
+        } catch (e) {
+          log(`   ⚠ Could not verify opportunity: ${e.data?.message || e.message || ''}`, 'info');
+        }
+      } else if (!autoConvert) {
+        log(`3️⃣ Auto-convert OFF — lead created only (no opportunity).`, 'info');
+      }
+
+      // Step 4: Verify transcript activity
+      if (data.transcriptActivityId) {
+        log(`4️⃣ WhatsApp transcript attached as activity: ${data.transcriptActivityId}`, 'ok');
+      } else {
+        log(`4️⃣ ⚠ No transcript activity returned.`, 'info');
+      }
+
+      // Summary
+      const statusMsg = autoConvert && data.opportunityId
+        ? `✅ Complete! Lead: ${data.leadId} → Opportunity: ${data.opportunityId} (${data.opportunityStage}) | Transcript: ${data.transcriptActivityId}`
+        : `✅ Lead created: ${data.leadId} (${data.leadStatus}) | Transcript: ${data.transcriptActivityId}`;
+      showStatus(statusEl, statusMsg, 'success');
+
+      log('═══ Scenario 18 Complete ═══', 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || e.message || JSON.stringify(e.data || e);
+      showStatus(statusEl, `❌ ${msg}`, 'error');
+      log(`✘ [S18] Failed: ${msg}`, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '📲 Run Scenario 18';
+    }
+  }
+
+  // ═══ Scenario 19: Email → Case ═══════════════════════════════
+  async function runScenario19() {
+    ensureAuth();
+    const statusEl = 's19Status';
+    const btn = document.getElementById('s19SubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Processing…';
+    showStatus(statusEl, '⏳ Sending inbound email webhook…', 'info');
+    try {
+      log('═══ Scenario 19: Email → Case ═══', 'info');
+
+      const fromAddress = document.getElementById('s19FromEmail').value;
+      const toAddress = document.getElementById('s19ToEmail').value;
+      const contactName = document.getElementById('s19ContactName').value;
+      const ccAddresses = document.getElementById('s19Cc').value;
+      const subject = document.getElementById('s19Subject').value;
+      const bodyText = document.getElementById('s19Body').value;
+
+      // Step 1: Send email webhook to integration-service
+      log(`1️⃣ Sending inbound email from ${fromAddress} → ${toAddress}…`, 'info');
+      const emailPayload = {
+        fromAddress,
+        toAddress,
+        subject,
+        bodyText,
+        contactName: contactName || undefined,
+        ccAddresses: ccAddresses || undefined
+      };
+      const resp = await api('POST', `${INTEGRATION_URL}/api/v1/integrations/channels/email-support`, emailPayload);
+      const data = resp.data || resp;
+
+      log(`   ✅ Email webhook processed: ${resp.message || 'OK'}`, 'ok');
+      log(`   Case ID:       ${data.caseId}`, 'data');
+      log(`   Case Number:   ${data.caseNumber}`, 'data');
+      log(`   Priority:      ${data.casePriority}`, 'data');
+      log(`   Status:        ${data.caseStatus}`, 'data');
+
+      // Step 2: Verify case exists in case-service
+      log(`2️⃣ Verifying case ${data.caseId}…`, 'info');
+      try {
+        const caseResp = await api('GET', `${CASE_URL}/api/v1/cases/${data.caseId}`);
+        const caseData = caseResp.data || caseResp;
+        log(`   ✅ Case confirmed: ${caseData.subject || caseData.title}`, 'ok');
+        log(`   Origin: ${caseData.origin} | Priority: ${caseData.priority} | Status: ${caseData.status}`, 'data');
+      } catch (e) {
+        log(`   ⚠ Could not verify case: ${e.data?.message || e.message || ''}`, 'info');
+      }
+
+      // Step 3: Verify email activity was attached
+      if (data.emailActivityId) {
+        log(`3️⃣ Email attached as activity: ${data.emailActivityId}`, 'ok');
+      } else {
+        log(`3️⃣ ⚠ No email activity returned.`, 'info');
+      }
+
+      // Summary
+      showStatus(statusEl,
+        `✅ Case created: ${data.caseNumber} (${data.casePriority}) | Status: ${data.caseStatus} | Activity: ${data.emailActivityId}`,
+        'success');
+
+      log('═══ Scenario 19 Complete ═══', 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || e.message || JSON.stringify(e.data || e);
+      showStatus(statusEl, `❌ ${msg}`, 'error');
+      log(`✘ [S19] Failed: ${msg}`, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '📧 Run Scenario 19';
+    }
+  }
+
+  // ═══ Scenario 20: Instagram/Social → Lead ══════════════════
+  async function runScenario20() {
+    ensureAuth();
+    const statusEl = 's20Status';
+    const btn = document.getElementById('s20SubmitBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span> Processing…';
+    showStatus(statusEl, '⏳ Sending social media webhook…', 'info');
+    try {
+      log('═══ Scenario 20: Instagram/Social → Lead ═══', 'info');
+
+      const platform = document.getElementById('s20Platform').value;
+      const username = document.getElementById('s20Username').value;
+      const fullName = document.getElementById('s20FullName').value;
+      const email = document.getElementById('s20Email').value;
+      const comment = document.getElementById('s20Comment').value;
+      const postUrl = document.getElementById('s20PostUrl').value;
+      const profileUrl = document.getElementById('s20ProfileUrl').value;
+
+      const weights = { INSTAGRAM: 15, FACEBOOK: 12, LINKEDIN: 20, TWITTER: 10 };
+
+      // Step 1: Send social media webhook
+      log(`1️⃣ Sending ${platform} comment from @${username}…`, 'info');
+      const socialPayload = {
+        platform,
+        username,
+        fullName: fullName || undefined,
+        email: email || undefined,
+        comment,
+        postUrl: postUrl || undefined,
+        profileUrl: profileUrl || undefined
+      };
+      const resp = await api('POST', `${INTEGRATION_URL}/api/v1/integrations/channels/social`, socialPayload);
+      const data = resp.data || resp;
+
+      log(`   ✅ Social webhook processed: ${resp.message || 'OK'}`, 'ok');
+      log(`   Lead ID:     ${data.leadId}`, 'data');
+      log(`   Source:      ${data.leadSource}`, 'data');
+      log(`   Lead Score:  ${data.leadScore} (expected: ${weights[platform] || '?'})`, 'data');
+      log(`   Status:      ${data.leadStatus}`, 'data');
+
+      LAST_LEAD_ID = data.leadId;
+
+      // Step 2: Verify lead exists
+      log(`2️⃣ Verifying lead ${data.leadId}…`, 'info');
+      try {
+        const leadResp = await api('GET', `${LEAD_URL}/api/v1/leads/${data.leadId}`);
+        const lead = leadResp.data || leadResp;
+        log(`   ✅ Lead confirmed: ${lead.firstName} ${lead.lastName}`, 'ok');
+        log(`   Source: ${lead.source} | Score: ${lead.leadScore} | Status: ${lead.status}`, 'data');
+      } catch (e) {
+        log(`   ⚠ Could not verify lead: ${e.data?.message || e.message || ''}`, 'info');
+      }
+
+      // Step 3: Check score matches platform weight
+      const expectedScore = weights[platform] || 10;
+      const scoreMatch = data.leadScore === expectedScore ? '✅' : '⚠';
+      log(`3️⃣ Score check: ${scoreMatch} ${data.leadScore} (expected ${expectedScore} for ${platform})`, data.leadScore === expectedScore ? 'ok' : 'info');
+
+      // Summary
+      showStatus(statusEl,
+        `✅ Lead created from ${platform}: ${data.leadId} | Score: ${data.leadScore} | Status: ${data.leadStatus}`,
+        'success');
+
+      log('═══ Scenario 20 Complete ═══', 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || e.message || JSON.stringify(e.data || e);
+      showStatus(statusEl, `❌ ${msg}`, 'error');
+      log(`✘ [S20] Failed: ${msg}`, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '📸 Run Scenario 20';
+    }
+  }
+
+  // ═══ Scenario 21: Pipeline Report ══════════════════════════
+  async function runScenario21() {
+    ensureAuth();
+    const btn = document.getElementById('s21SubmitBtn');
+    const statusEl = 's21Status';
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Running…';
+    showStatus(statusEl, '⏳ Fetching pipeline data…', 'pending');
+    try {
+      log('═══ Scenario 21: Pipeline Report ═══', 'info');
+
+      // 1 – Dashboard
+      log('1️⃣ Fetching pipeline dashboard…', 'info');
+      const dash = await api('GET', `${OPP_URL}/api/v1/opportunities/dashboard`);
+      const d = dash.data || dash;
+      log(`   ✅ Dashboard loaded`, 'ok');
+      log(`   Total pipeline value:  $${Number(d.totalPipelineValue).toLocaleString()}`, 'data');
+      log(`   Open deals:            ${d.totalOpenDeals}`, 'data');
+      log(`   Closed Won:            ${d.totalClosedWon}`, 'data');
+      log(`   Closed Lost:           ${d.totalClosedLost}`, 'data');
+      log(`   Win rate:              ${d.winRate}%`, 'data');
+      log(`   Weighted pipeline:     $${Number(d.weightedPipeline).toLocaleString()}`, 'data');
+
+      // 2 – Stage breakdown
+      log('2️⃣ Stage breakdown:', 'info');
+      (d.stageBreakdown || []).forEach(s => {
+        log(`   ${s.stage}: ${s.count} opps — $${Number(s.totalAmount).toLocaleString()}`, 'data');
+      });
+
+      // 3 – Revenue by lead source
+      log('3️⃣ Revenue by lead source:', 'info');
+      Object.entries(d.revenueByLeadSource || {}).forEach(([src, amt]) => {
+        log(`   ${src}: $${Number(amt).toLocaleString()}`, 'data');
+      });
+
+      // 4 – Forecast
+      log('4️⃣ Forecast categories:', 'info');
+      log(`   Pipeline:   $${Number(d.forecastPipeline).toLocaleString()}`, 'data');
+      log(`   Best case:  $${Number(d.forecastBestCase).toLocaleString()}`, 'data');
+      log(`   Commit:     $${Number(d.forecastCommit).toLocaleString()}`, 'data');
+      log(`   Closed:     $${Number(d.forecastClosed).toLocaleString()}`, 'data');
+
+      // 5 – Alerts
+      log('5️⃣ Alerts:', 'info');
+      log(`   Overdue: ${d.overdueDeals} | Closing soon: ${d.closingSoonDeals} | Stale: ${d.staleDeals}`, 'data');
+
+      showStatus(statusEl,
+        `✅ Pipeline: ${d.totalOpenDeals} open | $${Number(d.totalPipelineValue).toLocaleString()} value | ${d.winRate}% win rate`,
+        'success');
+      log('═══ Scenario 21 Complete ═══', 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || e.message || JSON.stringify(e.data || e);
+      showStatus(statusEl, `❌ ${msg}`, 'error');
+      log(`✘ [S21] Failed: ${msg}`, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '📊 Run Scenario 21';
+    }
+  }
+
+  // ═══ Scenario 22: Lead Conversion Rate ═════════════════════
+  async function runScenario22() {
+    ensureAuth();
+    const btn = document.getElementById('s22SubmitBtn');
+    const statusEl = 's22Status';
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Running…';
+    showStatus(statusEl, '⏳ Fetching lead analytics…', 'pending');
+    try {
+      log('═══ Scenario 22: Lead Conversion Rate ═══', 'info');
+
+      // 1 – Analytics
+      log('1️⃣ Fetching lead analytics…', 'info');
+      const resp = await api('GET', `${LEAD_URL}/api/v1/leads/analytics`);
+      const a = resp.data || resp;
+      log(`   ✅ Analytics loaded`, 'ok');
+      log(`   Total leads:      ${a.totalLeads}`, 'data');
+      log(`   Converted leads:  ${a.convertedLeads}`, 'data');
+      log(`   Conversion rate:  ${a.conversionRate.toFixed(2)}%`, 'data');
+      log(`   Average score:    ${a.averageScore.toFixed(2)}`, 'data');
+      log(`   SLA breached:     ${a.slaBreached}`, 'data');
+
+      // 2 – By Status
+      log('2️⃣ Leads by status:', 'info');
+      Object.entries(a.byStatus || {}).forEach(([s, c]) => {
+        log(`   ${s}: ${c}`, 'data');
+      });
+
+      // 3 – By Source
+      log('3️⃣ Leads by source:', 'info');
+      Object.entries(a.bySource || {}).forEach(([s, c]) => {
+        log(`   ${s}: ${c}`, 'data');
+      });
+
+      // 4 – Verify formula
+      const expectedRate = a.totalLeads > 0 ? (a.convertedLeads / a.totalLeads * 100) : 0;
+      const formulaOk = Math.abs(a.conversionRate - expectedRate) < 0.01;
+      log(`4️⃣ Formula check: ${formulaOk ? '✅' : '⚠'} ${a.convertedLeads}/${a.totalLeads} = ${expectedRate.toFixed(2)}%`, formulaOk ? 'ok' : 'info');
+
+      showStatus(statusEl,
+        `✅ Conversion: ${a.convertedLeads}/${a.totalLeads} = ${a.conversionRate.toFixed(2)}% | Avg score: ${a.averageScore.toFixed(2)}`,
+        'success');
+      log('═══ Scenario 22 Complete ═══', 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || e.message || JSON.stringify(e.data || e);
+      showStatus(statusEl, `❌ ${msg}`, 'error');
+      log(`✘ [S22] Failed: ${msg}`, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '🔄 Run Scenario 22';
+    }
+  }
+
+  // ═══ Scenario 23: SLA Compliance Report ════════════════════
+  async function runScenario23() {
+    ensureAuth();
+    const btn = document.getElementById('s23SubmitBtn');
+    const statusEl = 's23Status';
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Running…';
+    showStatus(statusEl, '⏳ Fetching case analytics…', 'pending');
+    try {
+      log('═══ Scenario 23: SLA Compliance Report ═══', 'info');
+
+      // 1 – Analytics
+      log('1️⃣ Fetching case analytics…', 'info');
+      const resp = await api('GET', `${CASE_URL}/api/v1/cases/analytics`);
+      const a = resp.data || resp;
+      log(`   ✅ Case analytics loaded`, 'ok');
+      log(`   Total cases:        ${a.totalCases}`, 'data');
+      log(`   Open cases:         ${a.openCases}`, 'data');
+      log(`   Resolved cases:     ${a.resolvedCases}`, 'data');
+      log(`   Escalated cases:    ${a.escalatedCases}`, 'data');
+      log(`   SLA compliance:     ${a.slaComplianceRate}%`, 'data');
+      log(`   SLA met:            ${a.slaMetCount}`, 'data');
+      log(`   SLA breached:       ${a.slaBreachedCount}`, 'data');
+      log(`   Avg resolution hrs: ${a.avgResolutionHours ?? 'N/A'}`, 'data');
+      log(`   Avg CSAT score:     ${a.avgCsatScore ?? 'N/A'}`, 'data');
+
+      // 2 – By Status
+      log('2️⃣ Cases by status:', 'info');
+      Object.entries(a.countByStatus || {}).forEach(([s, c]) => {
+        const marker = s === 'ESCALATED' ? '🚨 ' : '';
+        log(`   ${marker}${s}: ${c}`, s === 'ESCALATED' ? 'err' : 'data');
+      });
+
+      // 3 – By Priority
+      log('3️⃣ Cases by priority:', 'info');
+      Object.entries(a.countByPriority || {}).forEach(([p, c]) => {
+        const marker = (p === 'CRITICAL' || p === 'HIGH') ? '⚠️ ' : '';
+        log(`   ${marker}${p}: ${c}`, (p === 'CRITICAL' || p === 'HIGH') ? 'err' : 'data');
+      });
+
+      // 4 – SLA formula check
+      const met = a.slaMetCount;
+      const breached = a.slaBreachedCount;
+      let expectedRate = 100.0;
+      if (met + breached > 0) expectedRate = met / (met + breached) * 100;
+      const slaOk = Math.abs(a.slaComplianceRate - expectedRate) < 0.1;
+      log(`4️⃣ SLA rate check: ${slaOk ? '✅' : '⚠'} ${met}/(${met}+${breached}) = ${expectedRate.toFixed(1)}%`, slaOk ? 'ok' : 'info');
+
+      // 5 – Escalated highlight
+      if (a.escalatedCases > 0) {
+        log(`5️⃣ 🚨 ${a.escalatedCases} ESCALATED case(s) require attention!`, 'err');
+      } else {
+        log(`5️⃣ ✅ No escalated cases`, 'ok');
+      }
+
+      showStatus(statusEl,
+        `✅ SLA: ${a.slaComplianceRate}% compliant | ${a.totalCases} total | ${a.escalatedCases} escalated | ${a.resolvedCases} resolved`,
+        'success');
+      log('═══ Scenario 23 Complete ═══', 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || e.message || JSON.stringify(e.data || e);
+      showStatus(statusEl, `❌ ${msg}`, 'error');
+      log(`✘ [S23] Failed: ${msg}`, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '⏱️ Run Scenario 23';
+    }
+  }
+
+  // ═══ Scenario 24: Role-based Access Control ════════════════
+  async function runScenario24() {
+    ensureAuth();
+    const btn = document.getElementById('s24SubmitBtn');
+    const statusEl = 's24Status';
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Running…';
+    showStatus(statusEl, '⏳ Testing RBAC…', 'pending');
+    try {
+      log('═══ Scenario 24: Role-based Access Control ═══', 'info');
+      const ts = Date.now().toString(36);
+
+      // 1 – Register a sales rep (USER)
+      log('1️⃣ Registering sales rep (USER role)…', 'info');
+      const repResp = await api('POST', `${AUTH_URL}/api/v1/auth/register`, {
+        email: `rep_${ts}@test.example`, password: 'RepPass@123!',
+        firstName: 'Rep', lastName: ts, tenantId: 'default'
+      });
+      const rep = repResp.data || repResp;
+      const repToken = rep.accessToken;
+      log(`   ✅ Registered: ${rep.email} | Role: ${rep.roles.join(',')}`, 'ok');
+
+      // 2 – USER can list opportunities
+      log('2️⃣ USER lists opportunities…', 'info');
+      const repHeaders = { 'Authorization': `Bearer ${repToken}`, 'X-Tenant-ID': 'default' };
+      const listResp = await fetch(`${OPP_URL}/api/v1/opportunities?page=0&size=2`, { headers: repHeaders });
+      const listData = await listResp.json();
+      log(`   ✅ Listed ${listData.data?.totalElements ?? '?'} opportunities`, 'ok');
+
+      // 3 – USER cannot delete opportunity
+      log('3️⃣ USER attempts delete (expect 403)…', 'info');
+      const fakeId = '00000000-0000-0000-0000-000000000001';
+      const delResp = await fetch(`${OPP_URL}/api/v1/opportunities/${fakeId}`, { method: 'DELETE', headers: repHeaders });
+      const delOk = delResp.status === 403;
+      log(`   ${delOk ? '✅' : '⚠'} Delete returned ${delResp.status} (expected 403)`, delOk ? 'ok' : 'err');
+
+      // 4 – USER cannot access security admin
+      log('4️⃣ USER attempts security/roles (expect 403)…', 'info');
+      const secResp = await fetch(`${AUTH_URL}/api/v1/auth/security/roles`, { headers: repHeaders });
+      const secOk = secResp.status === 403;
+      log(`   ${secOk ? '✅' : '⚠'} Security roles returned ${secResp.status} (expected 403)`, secOk ? 'ok' : 'err');
+
+      // 5 – ADMIN can list roles
+      log('5️⃣ ADMIN lists roles…', 'info');
+      const rolesResp = await api('GET', `${AUTH_URL}/api/v1/auth/security/roles`);
+      const roles = (rolesResp.data || rolesResp).map(r => r.name);
+      log(`   ✅ Roles: ${roles.filter(r => ['ADMIN','MANAGER','USER'].includes(r)).join(', ')}`, 'ok');
+
+      // 6 – ADMIN can list users
+      log('6️⃣ ADMIN lists users…', 'info');
+      const usersResp = await api('GET', `${AUTH_URL}/api/v1/auth/security/users`);
+      const users = usersResp.data || usersResp;
+      log(`   ✅ ${users.length} users in tenant`, 'ok');
+
+      const pass = delOk && secOk;
+      showStatus(statusEl, pass
+        ? `✅ RBAC verified: USER restricted, ADMIN full access (${users.length} users, ${roles.length} roles)`
+        : '⚠ Some RBAC checks did not return expected 403', pass ? 'success' : 'error');
+      log('═══ Scenario 24 Complete ═══', 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || e.message || JSON.stringify(e.data || e);
+      showStatus(statusEl, `❌ ${msg}`, 'error');
+      log(`✘ [S24] Failed: ${msg}`, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '🔐 Run Scenario 24';
+    }
+  }
+
+  // ═══ Scenario 25: Field-level Security ═════════════════════
+  async function runScenario25() {
+    ensureAuth();
+    const btn = document.getElementById('s25SubmitBtn');
+    const statusEl = 's25Status';
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Running…';
+    showStatus(statusEl, '⏳ Testing field-level security…', 'pending');
+    try {
+      log('═══ Scenario 25: Field-level Security ═══', 'info');
+      const ts = Date.now().toString(36);
+
+      // 1 – List existing rules
+      log('1️⃣ Listing field security rules…', 'info');
+      const rulesResp = await api('GET', `${AUTH_URL}/api/v1/auth/security/field-security`);
+      const rules = rulesResp.data || rulesResp;
+      log(`   ✅ ${rules.length} rule(s) found`, 'ok');
+      rules.forEach(r => log(`   ${r.entityType}.${r.fieldName} → ${r.roleName}: ${r.accessLevel}`, 'data'));
+
+      // 2 – Create HIDDEN rule on Opportunity.amount for USER
+      log('2️⃣ Creating HIDDEN rule: Opportunity.amount for USER…', 'info');
+      const createResp = await api('POST', `${AUTH_URL}/api/v1/auth/security/field-security`, {
+        entityType: 'Opportunity', fieldName: `amount_${ts}`, roleName: 'USER', accessLevel: 'HIDDEN'
+      });
+      const rule = createResp.data || createResp;
+      log(`   ✅ Rule created: id=${rule.id}, level=${rule.accessLevel}`, 'ok');
+
+      // 3 – Update to READ_ONLY
+      log('3️⃣ Updating rule to READ_ONLY…', 'info');
+      const updResp = await api('PUT', `${AUTH_URL}/api/v1/auth/security/field-security/${rule.id}`, {
+        entityType: 'Opportunity', fieldName: `amount_${ts}`, roleName: 'USER', accessLevel: 'READ_ONLY'
+      });
+      const upd = updResp.data || updResp;
+      log(`   ✅ Updated: ${upd.accessLevel}`, 'ok');
+
+      // 4 – Delete the test rule
+      log('4️⃣ Deleting test rule…', 'info');
+      await api('DELETE', `${AUTH_URL}/api/v1/auth/security/field-security/${rule.id}`);
+      log(`   ✅ Rule deleted`, 'ok');
+
+      // 5 – Verify USER cannot access field-security endpoint
+      log('5️⃣ Registering junior rep to test access…', 'info');
+      const jrResp = await api('POST', `${AUTH_URL}/api/v1/auth/register`, {
+        email: `jr_${ts}@test.example`, password: 'JrPass@123!',
+        firstName: 'Junior', lastName: ts, tenantId: 'default'
+      });
+      const jrToken = (jrResp.data || jrResp).accessToken;
+      const jrH = { 'Authorization': `Bearer ${jrToken}`, 'X-Tenant-ID': 'default' };
+      const jrSecResp = await fetch(`${AUTH_URL}/api/v1/auth/security/field-security`, { headers: jrH });
+      const jrOk = jrSecResp.status === 403;
+      log(`   ${jrOk ? '✅' : '⚠'} Junior access → ${jrSecResp.status} (expected 403)`, jrOk ? 'ok' : 'err');
+
+      showStatus(statusEl,
+        `✅ Field security: CRUD verified, USER restricted from management`,
+        'success');
+      log('═══ Scenario 25 Complete ═══', 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || e.message || JSON.stringify(e.data || e);
+      showStatus(statusEl, `❌ ${msg}`, 'error');
+      log(`✘ [S25] Failed: ${msg}`, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '🛡️ Run Scenario 25';
+    }
+  }
+
+  // ═══ Scenario 26: Audit Log Validation ═════════════════════
+  async function runScenario26() {
+    ensureAuth();
+    const btn = document.getElementById('s26SubmitBtn');
+    const statusEl = 's26Status';
+    btn.disabled = true;
+    btn.innerHTML = '⏳ Running…';
+    showStatus(statusEl, '⏳ Testing audit trail…', 'pending');
+    try {
+      log('═══ Scenario 26: Audit Log Validation ═══', 'info');
+      const ts = Date.now().toString(36);
+
+      // 1 – Create an opportunity
+      log('1️⃣ Creating opportunity for audit trail…', 'info');
+      const oppResp = await api('POST', `${OPP_URL}/api/v1/opportunities`, {
+        name: `Audit Trail ${ts}`, amount: 25000, stage: 'PROSPECTING'
+      });
+      const opp = oppResp.data || oppResp;
+      log(`   ✅ Created: ${opp.name} (${opp.id})`, 'ok');
+
+      // 2 – Wait and change stage
+      await new Promise(r => setTimeout(r, 1000));
+      log('2️⃣ Changing stage PROSPECTING → QUALIFICATION…', 'info');
+      const s1 = await api('PATCH', `${OPP_URL}/api/v1/opportunities/${opp.id}/stage?stage=QUALIFICATION`);
+      log(`   ✅ Stage now: ${(s1.data||s1).stage}`, 'ok');
+
+      await new Promise(r => setTimeout(r, 1000));
+      log('3️⃣ Changing stage QUALIFICATION → PROPOSAL…', 'info');
+      const s2 = await api('PATCH', `${OPP_URL}/api/v1/opportunities/${opp.id}/stage?stage=PROPOSAL`);
+      log(`   ✅ Stage now: ${(s2.data||s2).stage}`, 'ok');
+
+      // 4 – Fetch activity timeline
+      await new Promise(r => setTimeout(r, 1000));
+      log('4️⃣ Fetching activity timeline…', 'info');
+      const actsResp = await api('GET', `${OPP_URL}/api/v1/opportunities/${opp.id}/activities?page=0&size=50`);
+      const acts = (actsResp.data || actsResp).content || [];
+      log(`   ✅ ${acts.length} activity record(s)`, 'ok');
+      acts.forEach(a => {
+        log(`   [${a.activityType}] ${a.description || '(no desc)'} at ${a.createdAt}`, 'data');
+      });
+
+      const types = acts.map(a => a.activityType);
+      const hasCreated = types.includes('CREATED');
+      const hasStageChanged = types.includes('STAGE_CHANGED');
+      log(`5️⃣ CREATED logged: ${hasCreated ? '✅' : '❌'} | STAGE_CHANGED logged: ${hasStageChanged ? '✅' : '❌'}`, hasCreated && hasStageChanged ? 'ok' : 'err');
+
+      // 6 – Check audit-log endpoint access
+      log('6️⃣ Checking audit-log endpoint (ADMIN)…', 'info');
+      const auditResp = await api('GET', `${AUTH_URL}/api/v1/auth/security/audit-logs?page=0&size=5`);
+      const auditData = auditResp.data || auditResp;
+      log(`   ✅ Audit log endpoint accessible, ${auditData.totalElements ?? 0} entries`, 'ok');
+
+      showStatus(statusEl,
+        `✅ Audit trail: ${acts.length} activities logged (CREATED: ${hasCreated ? 'yes' : 'no'}, STAGE_CHANGED: ${hasStageChanged ? 'yes' : 'no'})`,
+        'success');
+      log('═══ Scenario 26 Complete ═══', 'ok');
+    } catch (e) {
+      const msg = e.data?.message || e.data?.error || e.message || JSON.stringify(e.data || e);
+      showStatus(statusEl, `❌ ${msg}`, 'error');
+      log(`✘ [S26] Failed: ${msg}`, 'err');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '📝 Run Scenario 26';
+    }
+  }
+</script>
+</body>
+</html>

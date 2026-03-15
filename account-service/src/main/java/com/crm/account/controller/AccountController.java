@@ -15,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -293,6 +294,18 @@ public class AccountController {
         return ResponseEntity.ok(ApiResponse.success(accountService.detectDuplicates(name, phone, website)));
     }
 
+    // ── Account Merge ──────────────────────────────────────────
+    @PostMapping("/merge")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @Operation(summary = "Merge duplicate account into primary account")
+    public ResponseEntity<ApiResponse<AccountResponse>> mergeAccounts(
+            @RequestParam UUID primaryId,
+            @RequestParam UUID duplicateId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        AccountResponse response = accountService.mergeAccounts(primaryId, duplicateId, principal.getUserId());
+        return ResponseEntity.ok(ApiResponse.success(response, "Accounts merged successfully"));
+    }
+
     // ── Health Score ───────────────────────────────────────────
     @PutMapping("/{accountId}/health-score")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
@@ -321,11 +334,11 @@ public class AccountController {
     @PostMapping("/import")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
     @Operation(summary = "Import accounts from CSV")
-    public ResponseEntity<ApiResponse<Map<String, Integer>>> importAccounts(
-            @RequestBody String csvContent,
+    public ResponseEntity<ApiResponse<Map<String, Object>>> importAccounts(
+            @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal UserPrincipal principal) {
-        int count = accountService.importAccountsFromCsv(csvContent, principal.getUserId());
-        return ResponseEntity.ok(ApiResponse.success(Map.of("imported", count), count + " accounts imported"));
+        return ResponseEntity.ok(ApiResponse.success(
+                accountService.importAccountsFromFile(file, principal.getUserId()), "Import completed"));
     }
 
     @GetMapping("/export")

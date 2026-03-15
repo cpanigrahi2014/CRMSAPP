@@ -419,6 +419,18 @@ public class LeadController {
         return ResponseEntity.ok(ApiResponse.success(leadService.captureEmail(email, source), "Email captured"));
     }
 
+    @PostMapping("/capture-phone")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'USER')")
+    @Operation(summary = "Capture lead from phone (WhatsApp/SMS)")
+    public ResponseEntity<ApiResponse<LeadResponse>> capturePhone(
+            @RequestParam String phone,
+            @RequestParam(required = false) String source,
+            @RequestParam(required = false) String firstName,
+            @RequestParam(required = false) String lastName) {
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(leadService.capturePhone(phone, source, firstName, lastName), "Phone captured"));
+    }
+
     // ── Territory ──────────────────────────────────────────
 
     @GetMapping("/territory/{territory}")

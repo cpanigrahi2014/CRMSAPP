@@ -1,0 +1,17 @@
+============================================================
+  CRM Test Instance - Connection Info
+============================================================
+  Public IP      : 44.193.27.234
+  Instance ID    : i-0c96d4e1b6d29bd78
+  EIP Allocation : eipalloc-0a0bd720d471be138
+  Key File       : C:\Users\cpani\.ssh\crm-test-key.pem
+  Region         : us-east-1
+
+  SSH Command:
+    ssh -i "C:\Users\cpani\.ssh\crm-test-key.pem" ec2-user@44.193.27.234
+
+  App URL (after setup):
+    http://44.193.27.234
+
+  Monthly Cost: ~$20-35 (Spot)
+============================================================

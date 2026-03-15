@@ -1,0 +1,15 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# Minimum cost test deployment — fill in and save as terraform.tfvars
+# ─────────────────────────────────────────────────────────────────────────────
+
+aws_region    = "us-east-1"
+key_pair_name = "my-key-pair"         # Your existing EC2 key pair name
+
+# Restrict SSH to your IP only (find at https://checkip.amazonaws.com)
+allowed_ssh_cidr = "0.0.0.0/0"       # Change to "YOUR_IP/32" for security
+
+# Use Spot for ~60% savings ($20/mo vs $55/mo) — may be interrupted rarely
+use_spot = true
+
+# OpenAI key for AI features (optional, leave empty to skip)
+llm_api_key = ""

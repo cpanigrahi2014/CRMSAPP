@@ -58,6 +58,9 @@ public class LeadService {
     @Value("${app.services.contact-url:http://localhost:9084}")
     private String contactServiceUrl;
 
+    @Value("${app.services.activity-url:http://localhost:9086}")
+    private String activityServiceUrl;
+
     // ── Core CRUD ──────────────────────────────────────────
 
     @Transactional
@@ -198,7 +201,6 @@ public class LeadService {
                 Map<String, Object> body = new HashMap<>();
                 body.put("name", lead.getCompany());
                 body.put("phone", lead.getPhone());
-                body.put("email", lead.getEmail());
                 HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
                 ResponseEntity<Map> resp = restTemplate.exchange(
                         accountServiceUrl + "/api/v1/accounts", HttpMethod.POST, entity, Map.class);
@@ -206,7 +208,7 @@ public class LeadService {
                     Object accId = data.get("id");
                     if (accId != null) lead.setAccountId(UUID.fromString(accId.toString()));
                 }
-                log.info("Account created from lead conversion");
+                log.info("Account created from lead conversion: {}", lead.getAccountId());
             } catch (Exception e) {
                 log.warn("Could not create account during conversion: {}", e.getMessage());
             }
@@ -220,7 +222,8 @@ public class LeadService {
                 body.put("lastName", lead.getLastName());
                 body.put("email", lead.getEmail());
                 body.put("phone", lead.getPhone());
-                body.put("company", lead.getCompany());
+                if (lead.getTitle() != null) body.put("title", lead.getTitle());
+                if (lead.getSource() != null) body.put("leadSource", lead.getSource().name());
                 if (lead.getAccountId() != null) body.put("accountId", lead.getAccountId().toString());
                 HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
                 ResponseEntity<Map> resp = restTemplate.exchange(
@@ -229,7 +232,7 @@ public class LeadService {
                     Object ctId = data.get("id");
                     if (ctId != null) lead.setContactId(UUID.fromString(ctId.toString()));
                 }
-                log.info("Contact created from lead conversion");
+                log.info("Contact created from lead conversion: {}", lead.getContactId());
             } catch (Exception e) {
                 log.warn("Could not create contact during conversion: {}", e.getMessage());
             }
@@ -243,10 +246,19 @@ public class LeadService {
             oppBody.put("stage", request.getStage() != null ? request.getStage() : "PROSPECTING");
             oppBody.put("description", "Converted from lead: " + lead.getFirstName() + " " + lead.getLastName()
                     + " (" + lead.getCompany() + ")");
+            if (lead.getAccountId() != null) oppBody.put("accountId", lead.getAccountId().toString());
+            if (lead.getContactId() != null) oppBody.put("contactId", lead.getContactId().toString());
+            if (lead.getSource() != null) oppBody.put("leadSource", lead.getSource().name());
+            if (lead.getAssignedTo() != null) oppBody.put("assignedTo", lead.getAssignedTo());
+            if (lead.getCampaignId() != null) oppBody.put("campaignId", lead.getCampaignId().toString());
             HttpEntity<Map<String, Object>> entity = new HttpEntity<>(oppBody, headers);
-            restTemplate.exchange(opportunityServiceUrl + "/api/v1/opportunities",
+            ResponseEntity<Map> resp = restTemplate.exchange(opportunityServiceUrl + "/api/v1/opportunities",
                     HttpMethod.POST, entity, Map.class);
-            log.info("Opportunity created from lead conversion");
+            if (resp.getBody() != null && resp.getBody().get("data") instanceof Map data) {
+                Object oppId = data.get("id");
+                if (oppId != null) lead.setOpportunityId(UUID.fromString(oppId.toString()));
+            }
+            log.info("Opportunity created from lead conversion: {}", lead.getOpportunityId());
         } catch (Exception e) {
             log.error("Failed to create opportunity: {}", e.getMessage(), e);
             throw new BadRequestException("Failed to create opportunity: " + e.getMessage());
@@ -259,11 +271,17 @@ public class LeadService {
         recordActivity(leadId, tenantId, userId, "CONVERTED",
                 "Lead converted", "Opportunity: " + request.getOpportunityName(), null);
 
+        // Transfer lead activities to Contact and Opportunity in the activity-service
+        transferActivitiesToConvertedEntities(leadId, lead.getContactId(), lead.getOpportunityId(), headers);
+
         eventPublisher.publish("lead-events", tenantId, userId, "Lead",
                 convertedLead.getId().toString(), "LEAD_CONVERTED",
                 Map.of("opportunityName", request.getOpportunityName(),
                         "amount", request.getAmount() != null ? request.getAmount().toString() : "0",
-                        "stage", request.getStage() != null ? request.getStage() : "PROSPECTING"));
+                        "stage", request.getStage() != null ? request.getStage() : "PROSPECTING",
+                        "accountId", lead.getAccountId() != null ? lead.getAccountId().toString() : "",
+                        "contactId", lead.getContactId() != null ? lead.getContactId().toString() : "",
+                        "opportunityId", lead.getOpportunityId() != null ? lead.getOpportunityId().toString() : ""));
 
         return enrichResponse(leadMapper.toResponse(convertedLead));
     }
@@ -463,24 +481,39 @@ public class LeadService {
         int imported = 0;
         int errors = 0;
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
-            String header = reader.readLine(); // skip header
+            String headerLine = reader.readLine();
+            if (headerLine == null || headerLine.isBlank()) {
+                throw new BadRequestException("CSV file is empty or missing header");
+            }
+            // Parse header to build column index map
+            String[] headers = headerLine.split(",", -1);
+            Map<String, Integer> colMap = new java.util.HashMap<>();
+            for (int i = 0; i < headers.length; i++) {
+                colMap.put(headers[i].trim().toLowerCase().replaceAll("[^a-z0-9]", ""), i);
+            }
             String line;
             while ((line = reader.readLine()) != null) {
                 try {
                     String[] cols = line.split(",", -1);
                     if (cols.length < 2) continue;
                     Lead lead = Lead.builder()
-                            .firstName(cols[0].trim()).lastName(cols[1].trim())
-                            .email(cols.length > 2 ? cols[2].trim() : null)
-                            .phone(cols.length > 3 ? cols[3].trim() : null)
-                            .company(cols.length > 4 ? cols[4].trim() : null)
-                            .title(cols.length > 5 ? cols[5].trim() : null)
+                            .firstName(getCsvCol(cols, colMap, "firstname"))
+                            .lastName(getCsvCol(cols, colMap, "lastname"))
+                            .email(getCsvCol(cols, colMap, "email"))
+                            .phone(getCsvCol(cols, colMap, "phone"))
+                            .company(getCsvCol(cols, colMap, "company"))
+                            .title(getCsvCol(cols, colMap, "title"))
                             .status(Lead.LeadStatus.NEW).leadScore(0)
                             .build();
                     lead.setTenantId(tenantId);
-                    if (cols.length > 6 && !cols[6].isBlank()) {
-                        try { lead.setSource(Lead.LeadSource.valueOf(cols[6].trim().toUpperCase())); } catch (Exception ignored) {}
+                    String sourceVal = getCsvCol(cols, colMap, "source");
+                    if (sourceVal != null && !sourceVal.isBlank()) {
+                        try { lead.setSource(Lead.LeadSource.valueOf(sourceVal.toUpperCase())); } catch (Exception ignored) {}
                     }
+                    String descVal = getCsvCol(cols, colMap, "description");
+                    if (descVal != null && !descVal.isBlank()) { lead.setDescription(descVal); }
+                    String territoryVal = getCsvCol(cols, colMap, "territory");
+                    if (territoryVal != null && !territoryVal.isBlank()) { lead.setTerritory(territoryVal); }
                     applyAssignmentRules(lead, tenantId);
                     leadRepository.save(lead);
                     applyScoring(lead, tenantId);
@@ -494,6 +527,13 @@ public class LeadService {
             throw new BadRequestException("Failed to read CSV: " + e.getMessage());
         }
         return Map.of("imported", imported, "errors", errors);
+    }
+
+    private String getCsvCol(String[] cols, Map<String, Integer> colMap, String field) {
+        Integer idx = colMap.get(field);
+        if (idx == null || idx >= cols.length) return null;
+        String val = cols[idx].trim();
+        return val.isEmpty() ? null : val;
     }
 
     @Transactional(readOnly = true)
@@ -691,7 +731,92 @@ public class LeadService {
         applyAssignmentRules(lead, tenantId);
         Lead saved = leadRepository.save(lead);
         applyScoring(saved, tenantId);
+
+        log.info("Lead captured from email {} → id={}", email, saved.getId());
+        eventPublisher.publish("lead-events", tenantId, "system", "Lead",
+                saved.getId().toString(), "LEAD_CREATED", leadMapper.toResponse(saved));
+
         return enrichResponse(leadMapper.toResponse(saved));
+    }
+
+    @Transactional
+    public void recordEmailActivity(UUID leadId, String tenantId, String fromEmail,
+                                     String subject, String bodyText, String emailMessageId) {
+        String metadata = String.format(
+                "{\"fromEmail\":\"%s\",\"subject\":\"%s\",\"emailMessageId\":\"%s\"}",
+                fromEmail.replace("\"", "\\\""),
+                (subject != null ? subject.replace("\"", "\\\"") : ""),
+                (emailMessageId != null ? emailMessageId : ""));
+        recordActivity(leadId, tenantId, "system", "EMAIL_RECEIVED",
+                "Inbound email from " + fromEmail,
+                subject != null ? subject : "(no subject)",
+                metadata);
+        log.info("Recorded EMAIL_RECEIVED activity on lead {} from {}", leadId, fromEmail);
+    }
+
+    // ── Phone Capture (WhatsApp / SMS) ───────────────────
+
+    @Transactional
+    @CacheEvict(value = "leads", allEntries = true)
+    public LeadResponse capturePhone(String phone, String source, String firstName, String lastName) {
+        String tenantId = TenantContext.getTenantId();
+        String normalizedPhone = normalizePhone(phone);
+
+        // Check if lead with this phone already exists
+        List<Lead> existing = leadRepository.findDuplicates(tenantId, null, normalizedPhone);
+        if (!existing.isEmpty()) {
+            return enrichResponse(leadMapper.toResponse(existing.get(0)));
+        }
+
+        Lead lead = Lead.builder()
+                .firstName(firstName != null ? firstName : "Unknown")
+                .lastName(lastName != null ? lastName : "Unknown")
+                .phone(normalizedPhone)
+                .status(Lead.LeadStatus.NEW)
+                .leadScore(0)
+                .territory(resolveTerritory(normalizedPhone))
+                .build();
+        lead.setTenantId(tenantId);
+
+        if (source != null) {
+            try { lead.setSource(Lead.LeadSource.valueOf(source.toUpperCase())); } catch (Exception ignored) {}
+        } else {
+            lead.setSource(Lead.LeadSource.WHATSAPP);
+        }
+
+        applyAssignmentRules(lead, tenantId);
+        Lead saved = leadRepository.save(lead);
+        applyScoring(saved, tenantId);
+
+        log.info("Lead captured from phone {} → id={} territory={}", normalizedPhone, saved.getId(), saved.getTerritory());
+        eventPublisher.publish("lead-events", tenantId, "system", "Lead",
+                saved.getId().toString(), "LEAD_CREATED", leadMapper.toResponse(saved));
+
+        return enrichResponse(leadMapper.toResponse(saved));
+    }
+
+    private String normalizePhone(String phone) {
+        if (phone == null) return null;
+        String digits = phone.replaceAll("[^+\\d]", "");
+        // If it starts with + keep it, otherwise assume US/default
+        if (!digits.startsWith("+") && digits.length() == 10) {
+            digits = "+1" + digits;
+        }
+        return digits;
+    }
+
+    private String resolveTerritory(String phone) {
+        if (phone == null) return "UNKNOWN";
+        if (phone.startsWith("+1")) return "US";
+        if (phone.startsWith("+44")) return "EMEA";
+        if (phone.startsWith("+91")) return "APAC";
+        if (phone.startsWith("+61")) return "APAC";
+        if (phone.startsWith("+49") || phone.startsWith("+33") || phone.startsWith("+34")
+                || phone.startsWith("+39") || phone.startsWith("+31")) return "EMEA";
+        if (phone.startsWith("+55")) return "LATAM";
+        if (phone.startsWith("+52")) return "LATAM";
+        if (phone.startsWith("+81") || phone.startsWith("+82") || phone.startsWith("+86")) return "APAC";
+        return "GLOBAL";
     }
 
     // ── Territory Management ───────────────────────────────
@@ -798,6 +923,7 @@ public class LeadService {
                 yield null;
             }
             case "title" -> lead.getTitle();
+            case "phone" -> lead.getPhone();
             default -> null;
         };
     }
@@ -812,6 +938,79 @@ public class LeadService {
             activityRepository.save(activity);
         } catch (Exception e) {
             log.warn("Could not record activity: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * After conversion, re-link any activity-service activities from the lead to the new contact/opportunity.
+     * Also copies lead_activities timeline entries as new activity-service records on the contact.
+     */
+    @SuppressWarnings("unchecked")
+    private void transferActivitiesToConvertedEntities(UUID leadId, UUID contactId, UUID opportunityId,
+                                                       HttpHeaders headers) {
+        try {
+            // 1. Re-link existing activity-service activities from this lead to the contact
+            String url = activityServiceUrl + "/api/v1/activities/related/" + leadId + "?page=0&size=100";
+            ResponseEntity<Map> resp = restTemplate.exchange(url, HttpMethod.GET, new HttpEntity<>(headers), Map.class);
+            if (resp.getBody() != null && resp.getBody().get("data") instanceof Map pagedData) {
+                Object contentObj = pagedData.get("content");
+                if (contentObj instanceof List<?> activities) {
+                    for (Object actObj : activities) {
+                        if (actObj instanceof Map act) {
+                            String actId = act.get("id") != null ? act.get("id").toString() : null;
+                            if (actId == null) continue;
+
+                            // Move to contact if available, otherwise to opportunity
+                            UUID targetId = contactId != null ? contactId : opportunityId;
+                            String targetType = contactId != null ? "CONTACT" : "OPPORTUNITY";
+                            if (targetId == null) continue;
+
+                            Map<String, Object> updateBody = new HashMap<>();
+                            updateBody.put("relatedEntityType", targetType);
+                            updateBody.put("relatedEntityId", targetId.toString());
+                            HttpEntity<Map<String, Object>> updateEntity = new HttpEntity<>(updateBody, headers);
+                            restTemplate.exchange(activityServiceUrl + "/api/v1/activities/" + actId,
+                                    HttpMethod.PUT, updateEntity, Map.class);
+                            log.info("Transferred activity {} to {} {}", actId, targetType, targetId);
+                        }
+                    }
+                }
+            }
+
+            // 2. Copy lead timeline entries (lead_activities) as activity-service records on contact/opportunity
+            List<LeadActivity> leadActivities = activityRepository.findByLeadIdOrderByCreatedAtDesc(leadId);
+            for (LeadActivity la : leadActivities) {
+                if ("CONVERTED".equals(la.getActivityType())) continue; // skip the conversion entry itself
+
+                // Create on contact
+                if (contactId != null) {
+                    createActivityServiceRecord(la, "CONTACT", contactId, headers);
+                }
+                // Create on opportunity
+                if (opportunityId != null) {
+                    createActivityServiceRecord(la, "OPPORTUNITY", opportunityId, headers);
+                }
+            }
+            log.info("Lead activities copied to converted entities for lead {}", leadId);
+        } catch (Exception e) {
+            log.warn("Could not transfer activities during conversion: {}", e.getMessage());
+        }
+    }
+
+    private void createActivityServiceRecord(LeadActivity la, String entityType, UUID entityId,
+                                              HttpHeaders headers) {
+        try {
+            Map<String, Object> body = new HashMap<>();
+            body.put("type", "TASK"); // default type for transferred activities
+            body.put("subject", la.getTitle());
+            body.put("description", la.getDescription());
+            body.put("relatedEntityType", entityType);
+            body.put("relatedEntityId", entityId.toString());
+            HttpEntity<Map<String, Object>> entity = new HttpEntity<>(body, headers);
+            restTemplate.exchange(activityServiceUrl + "/api/v1/activities",
+                    HttpMethod.POST, entity, Map.class);
+        } catch (Exception e) {
+            log.warn("Could not create activity-service record for {}: {}", la.getActivityType(), e.getMessage());
         }
     }
 
