@@ -25,6 +25,9 @@ async function tryApi<T>(apiFn: () => Promise<T>, fallback: T): Promise<T> {
   } catch { return fallback; }
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isUUID(v: string): boolean { return UUID_RE.test(v); }
+
 /* ── Storage keys ────────────────────────────────────────────── */
 const K = {
   chat: 'crm_collab_chat',
@@ -94,9 +97,11 @@ export const collaborationService = {
   getChatMessages: async (opportunityId: string, page = 0, size = 50) => {
     const local = loadJson<DealChatMessage[]>(K.chat, DEFAULT_CHAT);
     const filtered = local.filter(m => m.opportunityId === opportunityId);
+    const fallback = { content: filtered, pageNumber: 0, pageSize: size, totalElements: filtered.length, totalPages: 1, last: true, first: true } as PagedData<DealChatMessage>;
+    if (!isUUID(opportunityId)) return fallback;
     return tryApi(
       () => api.get<ApiResponse<PagedData<DealChatMessage>>>(`${COLLAB_BASE}/chat/${opportunityId}`, { params: { page, size } }).then(r => r.data.data),
-      { content: filtered, pageNumber: 0, pageSize: size, totalElements: filtered.length, totalPages: 1, last: true, first: true } as PagedData<DealChatMessage>,
+      fallback,
     );
   },
 
@@ -172,9 +177,11 @@ export const collaborationService = {
   /* ── Deal Approvals ────────────────────────────────────────── */
   getApprovalsByDeal: async (opportunityId: string, page = 0, size = 20) => {
     const local = loadJson<DealApproval[]>(K.approvals, DEFAULT_APPROVALS).filter(a => a.opportunityId === opportunityId);
+    const fallback = { content: local, pageNumber: 0, pageSize: size, totalElements: local.length, totalPages: 1, last: true, first: true } as PagedData<DealApproval>;
+    if (!isUUID(opportunityId)) return fallback;
     return tryApi(
       () => api.get<ApiResponse<PagedData<DealApproval>>>(`${COLLAB_BASE}/approvals/opportunity/${opportunityId}`, { params: { page, size } }).then(r => r.data.data),
-      { content: local, pageNumber: 0, pageSize: size, totalElements: local.length, totalPages: 1, last: true, first: true } as PagedData<DealApproval>,
+      fallback,
     );
   },
 
@@ -229,9 +236,11 @@ export const collaborationService = {
   getComments: async (recordType: string, recordId: string, page = 0, size = 50) => {
     const local = loadJson<RecordComment[]>(K.comments, DEFAULT_COMMENTS)
       .filter(c => c.recordType === recordType && c.recordId === recordId);
+    const fallback = { content: local, pageNumber: 0, pageSize: size, totalElements: local.length, totalPages: 1, last: true, first: true } as PagedData<RecordComment>;
+    if (!isUUID(recordId)) return fallback;
     return tryApi(
       () => api.get<ApiResponse<PagedData<RecordComment>>>(`${COLLAB_BASE}/comments/${recordType}/${recordId}`, { params: { page, size } }).then(r => r.data.data),
-      { content: local, pageNumber: 0, pageSize: size, totalElements: local.length, totalPages: 1, last: true, first: true } as PagedData<RecordComment>,
+      fallback,
     );
   },
 
@@ -285,9 +294,11 @@ export const collaborationService = {
   getEntityStream: async (entityType: string, entityId: string, page = 0, size = 50) => {
     const local = loadJson<ActivityStreamEvent[]>(K.stream, DEFAULT_STREAM)
       .filter(e => e.entityType === entityType && e.entityId === entityId);
+    const fallback = { content: local, pageNumber: 0, pageSize: size, totalElements: local.length, totalPages: 1, last: true, first: true } as PagedData<ActivityStreamEvent>;
+    if (!isUUID(entityId)) return fallback;
     return tryApi(
       () => api.get<ApiResponse<PagedData<ActivityStreamEvent>>>(`${ACTIVITY_BASE}/stream/entity/${entityType}/${entityId}`, { params: { page, size } }).then(r => r.data.data),
-      { content: local, pageNumber: 0, pageSize: size, totalElements: local.length, totalPages: 1, last: true, first: true } as PagedData<ActivityStreamEvent>,
+      fallback,
     );
   },
 };
