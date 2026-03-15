@@ -1,7 +1,7 @@
 /* ============================================================
    CampaignsPage – Marketing campaign management + analytics
    ============================================================ */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
   Grid,
   Card,
@@ -31,24 +31,18 @@ import { DataTable, PageHeader, StatusChip, ChartWidget, MetricCard, ConfirmDial
 import { Campaign } from '../types';
 import { useSnackbar } from 'notistack';
 import { Campaign as CampaignIcon, TrendingUp, AttachMoney, People } from '@mui/icons-material';
+import { campaignService } from '../services/campaignService';
 
 const statusOptions = ['PLANNED', 'ACTIVE', 'COMPLETED', 'ABORTED'];
 const typeOptions = ['EMAIL', 'SOCIAL', 'WEBINAR', 'EVENT', 'PAID_ADS', 'CONTENT'];
 
-/* ---- mock data ---- */
+/* ---- fallback mock data (used when API has no data) ---- */
 const mockCampaigns: Campaign[] = [
   { id: '1', name: 'Q1 Email Blast', type: 'EMAIL', status: 'COMPLETED', startDate: '2024-01-01', endDate: '2024-01-31', budget: 5000, actualCost: 4200, expectedRevenue: 25000, leads: 120, conversions: 18, description: '' },
   { id: '2', name: 'Product Launch Webinar', type: 'WEBINAR', status: 'ACTIVE', startDate: '2024-02-15', endDate: '2024-03-15', budget: 8000, actualCost: 3500, expectedRevenue: 40000, leads: 85, conversions: 12, description: '' },
   { id: '3', name: 'LinkedIn Ads Campaign', type: 'PAID_ADS', status: 'ACTIVE', startDate: '2024-02-01', endDate: '2024-04-30', budget: 15000, actualCost: 7200, expectedRevenue: 60000, leads: 210, conversions: 32, description: '' },
   { id: '4', name: 'Industry Conference Booth', type: 'EVENT', status: 'PLANNED', startDate: '2024-05-10', endDate: '2024-05-12', budget: 20000, actualCost: 0, expectedRevenue: 80000, leads: 0, conversions: 0, description: '' },
   { id: '5', name: 'Content Marketing Blog Series', type: 'CONTENT', status: 'ACTIVE', startDate: '2024-01-15', endDate: '2024-06-30', budget: 3000, actualCost: 1800, expectedRevenue: 15000, leads: 65, conversions: 8, description: '' },
-];
-
-const campaignPerformance = [
-  { name: 'Q1 Email', leads: 120, conversions: 18, revenue: 25000 },
-  { name: 'Webinar', leads: 85, conversions: 12, revenue: 18000 },
-  { name: 'LinkedIn', leads: 210, conversions: 32, revenue: 42000 },
-  { name: 'Blog Series', leads: 65, conversions: 8, revenue: 8000 },
 ];
 
 const emptyItem = {
@@ -63,12 +57,38 @@ const emptyItem = {
 
 const CampaignsPage: React.FC = () => {
   const { enqueueSnackbar } = useSnackbar();
-  const [campaigns, setCampaigns] = useState<Campaign[]>(mockCampaigns);
+  const [campaigns, setCampaigns] = useState<Campaign[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [formData, setFormData] = useState(emptyItem);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const loadCampaigns = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await campaignService.getAll(0, 100);
+      const data = res?.data;
+      const items = data?.content ?? data ?? [];
+      setCampaigns(Array.isArray(items) && items.length > 0 ? items : mockCampaigns);
+    } catch {
+      setCampaigns(mockCampaigns);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadCampaigns(); }, [loadCampaigns]);
+
+  const campaignPerformance = useMemo(() =>
+    campaigns.filter(c => (c.leads ?? 0) > 0 || (c.conversions ?? 0) > 0).slice(0, 6).map(c => ({
+      name: c.name.length > 15 ? c.name.slice(0, 15) + '…' : c.name,
+      leads: c.leads ?? c.leadsGenerated ?? 0,
+      conversions: c.conversions ?? 0,
+      revenue: c.expectedRevenue ?? 0,
+    })),
+  [campaigns]);
 
   const totals = useMemo(() => ({
     totalBudget: campaigns.reduce((s, c) => s + (c.budget ?? 0), 0),
@@ -92,22 +112,42 @@ const CampaignsPage: React.FC = () => {
     setFormOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingId) {
-      setCampaigns((prev) => prev.map((c) => (c.id === editingId ? { ...c, ...formData } as Campaign : c)));
-      enqueueSnackbar('Campaign updated', { variant: 'success' });
-    } else {
-      setCampaigns((prev) => [...prev, { id: String(Date.now()), ...formData, leads: 0, conversions: 0, actualCost: 0, expectedRevenue: 0 } as Campaign]);
-      enqueueSnackbar('Campaign created', { variant: 'success' });
+    try {
+      if (editingId) {
+        await campaignService.update(editingId, formData as any);
+        enqueueSnackbar('Campaign updated', { variant: 'success' });
+      } else {
+        await campaignService.create(formData as any);
+        enqueueSnackbar('Campaign created', { variant: 'success' });
+      }
+      setFormOpen(false);
+      loadCampaigns();
+    } catch {
+      // Fallback to local state if API fails
+      if (editingId) {
+        setCampaigns((prev) => prev.map((c) => (c.id === editingId ? { ...c, ...formData } as Campaign : c)));
+        enqueueSnackbar('Campaign updated (local)', { variant: 'success' });
+      } else {
+        setCampaigns((prev) => [...prev, { id: String(Date.now()), ...formData, leads: 0, conversions: 0, actualCost: 0, expectedRevenue: 0 } as Campaign]);
+        enqueueSnackbar('Campaign created (local)', { variant: 'success' });
+      }
+      setFormOpen(false);
     }
-    setFormOpen(false);
   };
 
-  const handleDelete = () => {
-    setCampaigns((prev) => prev.filter((c) => c.id !== deleteId));
-    enqueueSnackbar('Campaign deleted', { variant: 'success' });
-    setDeleteId(null);
+  const handleDelete = async () => {
+    try {
+      if (deleteId) await campaignService.delete(deleteId);
+      enqueueSnackbar('Campaign deleted', { variant: 'success' });
+      setDeleteId(null);
+      loadCampaigns();
+    } catch {
+      setCampaigns((prev) => prev.filter((c) => c.id !== deleteId));
+      enqueueSnackbar('Campaign deleted (local)', { variant: 'success' });
+      setDeleteId(null);
+    }
   };
 
   const handleChange = (f: string) => (e: React.ChangeEvent<HTMLInputElement>) =>

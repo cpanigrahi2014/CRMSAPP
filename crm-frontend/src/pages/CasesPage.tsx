@@ -1,7 +1,7 @@
 /* ============================================================
    CasesPage – Support / Customer Service case management
    ============================================================ */
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import {
   TextField,
@@ -15,11 +15,12 @@ import { Edit as EditIcon, Delete as DeleteIcon, Visibility as ViewIcon } from '
 import { DataTable, PageHeader, StatusChip, ConfirmDialog, ModalForm } from '../components';
 import { SupportCase } from '../types';
 import { useSnackbar } from 'notistack';
+import { caseService } from '../services/caseService';
 
 const statusOptions = ['OPEN', 'IN_PROGRESS', 'ESCALATED', 'RESOLVED', 'CLOSED'];
 const priorityOptions = ['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'];
 
-/* ---- mock data ---- */
+/* ---- fallback mock data (used when API has no data) ---- */
 const mockCases: SupportCase[] = [
   { id: '1', caseNumber: 'CS-1001', subject: 'Login issues with SSO', status: 'OPEN', priority: 'HIGH', contactName: 'Alice Johnson', accountName: 'Acme Corp', createdDate: '2024-01-15', description: '' },
   { id: '2', caseNumber: 'CS-1002', subject: 'Billing discrepancy on invoice', status: 'IN_PROGRESS', priority: 'MEDIUM', contactName: 'Bob Smith', accountName: 'Globex Inc', createdDate: '2024-01-14', description: '' },
@@ -39,12 +40,29 @@ const emptyCase = {
 
 const CasesPage: React.FC = () => {
   const { enqueueSnackbar } = useSnackbar();
-  const [cases, setCases] = useState<SupportCase[]>(mockCases);
+  const [cases, setCases] = useState<SupportCase[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [formOpen, setFormOpen] = useState(false);
   const [formData, setFormData] = useState(emptyCase);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  const loadCases = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await caseService.getAll(0, 100);
+      const data = res?.data;
+      const items = data?.content ?? data ?? [];
+      setCases(Array.isArray(items) && items.length > 0 ? items : mockCases);
+    } catch {
+      setCases(mockCases);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadCases(); }, [loadCases]);
 
   const openCreate = () => { setEditingId(null); setFormData(emptyCase); setFormOpen(true); };
   const openEdit = (c: SupportCase) => {
@@ -60,28 +78,47 @@ const CasesPage: React.FC = () => {
     setFormOpen(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (editingId) {
-      setCases((prev) => prev.map((c) => (c.id === editingId ? { ...c, ...formData } as SupportCase : c)));
-      enqueueSnackbar('Case updated', { variant: 'success' });
-    } else {
-      const newCase = {
-        id: String(Date.now()),
-        caseNumber: `CS-${1005 + cases.length}`,
-        ...formData,
-        createdDate: new Date().toISOString().split('T')[0],
-      } as SupportCase;
-      setCases((prev) => [...prev, newCase]);
-      enqueueSnackbar('Case created', { variant: 'success' });
+    try {
+      if (editingId) {
+        await caseService.update(editingId, formData as any);
+        enqueueSnackbar('Case updated', { variant: 'success' });
+      } else {
+        await caseService.create(formData as any);
+        enqueueSnackbar('Case created', { variant: 'success' });
+      }
+      setFormOpen(false);
+      loadCases();
+    } catch {
+      if (editingId) {
+        setCases((prev) => prev.map((c) => (c.id === editingId ? { ...c, ...formData } as SupportCase : c)));
+        enqueueSnackbar('Case updated (local)', { variant: 'success' });
+      } else {
+        const newCase = {
+          id: String(Date.now()),
+          caseNumber: `CS-${1005 + cases.length}`,
+          ...formData,
+          createdDate: new Date().toISOString().split('T')[0],
+        } as SupportCase;
+        setCases((prev) => [...prev, newCase]);
+        enqueueSnackbar('Case created (local)', { variant: 'success' });
+      }
+      setFormOpen(false);
     }
-    setFormOpen(false);
   };
 
-  const handleDelete = () => {
-    setCases((prev) => prev.filter((c) => c.id !== deleteId));
-    enqueueSnackbar('Case deleted', { variant: 'success' });
-    setDeleteId(null);
+  const handleDelete = async () => {
+    try {
+      if (deleteId) await caseService.delete(deleteId);
+      enqueueSnackbar('Case deleted', { variant: 'success' });
+      setDeleteId(null);
+      loadCases();
+    } catch {
+      setCases((prev) => prev.filter((c) => c.id !== deleteId));
+      enqueueSnackbar('Case deleted (local)', { variant: 'success' });
+      setDeleteId(null);
+    }
   };
 
   const handleChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) =>

@@ -10,3 +10,5 @@ export { securityService } from './securityService';
 export { integrationService } from './integrationService';
 export { aiInsightsService } from './aiInsightsService';
 export { collaborationService } from './collaborationService';
+export { campaignService } from './campaignService';
+export { caseService } from './caseService';

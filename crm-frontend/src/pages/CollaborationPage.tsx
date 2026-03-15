@@ -60,7 +60,7 @@ const CollaborationPage: React.FC = () => {
   /* ── Deal Chat state ───────────────────────────────────────── */
   const [chatMessages, setChatMessages] = useState<DealChatMessage[]>([]);
   const [chatInput, setChatInput] = useState('');
-  const [chatDealId, setChatDealId] = useState('opp-1');
+  const [chatDealId, setChatDealId] = useState('');
 
   /* ── Mentions state ────────────────────────────────────────── */
   const [mentions, setMentions] = useState<MentionRecord[]>([]);
@@ -69,7 +69,7 @@ const CollaborationPage: React.FC = () => {
   /* ── Approvals state ───────────────────────────────────────── */
   const [approvals, setApprovals] = useState<DealApproval[]>([]);
   const [approvalDialog, setApprovalDialog] = useState(false);
-  const [approvalForm, setApprovalForm] = useState({ opportunityId: 'opp-1', approverId: 'user-5', approverName: 'VP Sarah Chen', approvalType: 'DISCOUNT', title: '', description: '', currentValue: '', requestedValue: '', priority: 'NORMAL' });
+  const [approvalForm, setApprovalForm] = useState({ opportunityId: '', approverId: '', approverName: '', approvalType: 'DISCOUNT', title: '', description: '', currentValue: '', requestedValue: '', priority: 'NORMAL' });
   const [decisionDialog, setDecisionDialog] = useState<{ open: boolean; id: string }>({ open: false, id: '' });
   const [decisionComment, setDecisionComment] = useState('');
 
@@ -77,7 +77,7 @@ const CollaborationPage: React.FC = () => {
   const [comments, setComments] = useState<RecordComment[]>([]);
   const [commentInput, setCommentInput] = useState('');
   const [commentRecordType, setCommentRecordType] = useState('OPPORTUNITY');
-  const [commentRecordId, setCommentRecordId] = useState('opp-1');
+  const [commentRecordId, setCommentRecordId] = useState('');
   const [replyTo, setReplyTo] = useState<string | undefined>(undefined);
 
   /* ── Activity Stream state ─────────────────────────────────── */
