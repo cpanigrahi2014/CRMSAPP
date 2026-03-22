@@ -33,6 +33,10 @@ import {
   CartesianGrid,
   Tooltip,
   Legend,
+  LineChart,
+  Line,
+  AreaChart,
+  Area,
 } from 'recharts';
 import {
   PageHeader,
@@ -44,7 +48,7 @@ import {
   AutoRefreshControl,
 } from '../components';
 import type { ExportableData } from '../components/ExportMenu';
-import { opportunityService } from '../services';
+import { opportunityService, leadService } from '../services';
 import {
   EmojiEvents,
   Speed,
@@ -62,6 +66,8 @@ import type {
   RevenueAnalytics,
   StageConversionAnalytics,
   PipelinePerformance,
+  RevenueTrend,
+  LeadAnalytics,
 } from '../types';
 
 /* ---- helpers ---- */
@@ -84,21 +90,27 @@ const ReportsPage: React.FC = () => {
   const [revenue, setRevenue] = useState<RevenueAnalytics | null>(null);
   const [conversion, setConversion] = useState<StageConversionAnalytics | null>(null);
   const [performance, setPerformance] = useState<PipelinePerformance | null>(null);
+  const [revenueTrend, setRevenueTrend] = useState<RevenueTrend | null>(null);
+  const [leadAnalytics, setLeadAnalytics] = useState<LeadAnalytics | null>(null);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const [wlRes, revRes, convRes, perfRes] = await Promise.all([
+      const [wlRes, revRes, convRes, perfRes, trendRes, leadRes] = await Promise.all([
         opportunityService.getWinLossAnalysis(),
         opportunityService.getRevenueAnalytics(),
         opportunityService.getConversionAnalytics(),
         opportunityService.getPerformance(),
+        opportunityService.getRevenueTrend().catch(() => ({ data: null })),
+        leadService.getAnalytics().catch(() => ({ data: null })),
       ]);
       setWinLoss(wlRes.data);
       setRevenue(revRes.data);
       setConversion(convRes.data);
       setPerformance(perfRes.data);
+      setRevenueTrend(trendRes.data as RevenueTrend | null);
+      setLeadAnalytics(leadRes.data as LeadAnalytics | null);
     } catch (e: any) {
       setError(e?.response?.data?.message || 'Failed to load reports data');
     } finally {
@@ -377,6 +389,69 @@ const ReportsPage: React.FC = () => {
             </Card>
           </Grid>
 
+          {/* Rep Revenue Leaderboard */}
+          <Grid item xs={12} md={6}>
+            <ChartWidget title="Revenue by Representative" height={300}>
+              {(performance?.repPerformances ?? []).length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={[...performance!.repPerformances]
+                      .sort((a, b) => b.totalRevenue - a.totalRevenue)
+                      .slice(0, 10)
+                      .map((r) => ({ name: r.userId.split('@')[0], revenue: r.totalRevenue }))}
+                    layout="vertical"
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" tickFormatter={(v) => `$${v / 1000}k`} />
+                    <YAxis dataKey="name" type="category" width={100} />
+                    <Tooltip formatter={(v: number) => fmtCurrency(v)} />
+                    <Bar dataKey="revenue" fill="#059669" radius={[0, 4, 4, 0]}>
+                      {performance!.repPerformances.slice(0, 10).map((_, i) => (
+                        <Cell key={i} fill={STAGE_COLORS[i % STAGE_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <Box display="flex" alignItems="center" justifyContent="center" height="100%">
+                  <Typography color="text.secondary">No rep data yet</Typography>
+                </Box>
+              )}
+            </ChartWidget>
+          </Grid>
+
+          {/* Rep Win Rate Leaderboard */}
+          <Grid item xs={12} md={6}>
+            <ChartWidget title="Win Rate by Representative" height={300}>
+              {(performance?.repPerformances ?? []).length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={[...performance!.repPerformances]
+                      .filter((r) => r.totalDeals >= 2)
+                      .sort((a, b) => b.winRate - a.winRate)
+                      .slice(0, 10)
+                      .map((r) => ({ name: r.userId.split('@')[0], winRate: r.winRate }))}
+                    layout="vertical"
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} />
+                    <YAxis dataKey="name" type="category" width={100} />
+                    <Tooltip formatter={(v: number) => `${v.toFixed(1)}%`} />
+                    <Bar dataKey="winRate" fill="#1976d2" radius={[0, 4, 4, 0]}>
+                      {performance!.repPerformances.slice(0, 10).map((_, i) => (
+                        <Cell key={i} fill={i === 0 ? '#059669' : i === 1 ? '#0891b2' : i === 2 ? '#7c3aed' : STAGE_COLORS[i % STAGE_COLORS.length]} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              ) : (
+                <Box display="flex" alignItems="center" justifyContent="center" height="100%">
+                  <Typography color="text.secondary">No rep data yet</Typography>
+                </Box>
+              )}
+            </ChartWidget>
+          </Grid>
+
           {/* Summary cards */}
           <Grid item xs={12} md={6}>
             <Card>
@@ -508,6 +583,99 @@ const ReportsPage: React.FC = () => {
               </CardContent>
             </Card>
           </Grid>
+
+          {/* Pipeline Funnel */}
+          <Grid item xs={12} md={6}>
+            <ChartWidget title="Pipeline Funnel" height={320}>
+              {conversionRates.length > 0 ? (
+                <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.5, height: '100%', justifyContent: 'center', px: 2 }}>
+                  {conversionRates.map((cr, i) => {
+                    const maxTotal = Math.max(...conversionRates.map((c) => c.total));
+                    const widthPct = maxTotal > 0 ? (cr.total / maxTotal) * 100 : 100;
+                    return (
+                      <Box key={cr.stage} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Typography variant="caption" sx={{ minWidth: 100, textAlign: 'right', fontWeight: 500 }}>{cr.stage}</Typography>
+                        <Box sx={{
+                          height: 28,
+                          width: `${widthPct}%`,
+                          minWidth: 40,
+                          bgcolor: STAGE_COLORS[i % STAGE_COLORS.length],
+                          borderRadius: 1,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'width 0.5s ease',
+                        }}>
+                          <Typography variant="caption" sx={{ color: '#fff', fontWeight: 600, fontSize: 11 }}>
+                            {cr.total} ({cr.conversionPct.toFixed(0)}%)
+                          </Typography>
+                        </Box>
+                      </Box>
+                    );
+                  })}
+                </Box>
+              ) : (
+                <Box display="flex" alignItems="center" justifyContent="center" height="100%">
+                  <Typography color="text.secondary">No funnel data yet</Typography>
+                </Box>
+              )}
+            </ChartWidget>
+          </Grid>
+
+          {/* Lead Conversion Summary */}
+          <Grid item xs={12} md={6}>
+            <ChartWidget title="Lead Conversion Overview" height={320}>
+              {leadAnalytics ? (
+                <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', px: 2 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-around', mb: 3 }}>
+                    <Box sx={{ textAlign: 'center' }}>
+                      <Typography variant="h3" color="primary" fontWeight={700}>{leadAnalytics.totalLeads}</Typography>
+                      <Typography variant="caption" color="text.secondary">Total Leads</Typography>
+                    </Box>
+                    <Box sx={{ textAlign: 'center' }}>
+                      <Typography variant="h3" color="success.main" fontWeight={700}>{leadAnalytics.convertedLeads}</Typography>
+                      <Typography variant="caption" color="text.secondary">Converted</Typography>
+                    </Box>
+                    <Box sx={{ textAlign: 'center' }}>
+                      <Typography variant="h3" fontWeight={700} sx={{ color: '#7c3aed' }}>{pct(leadAnalytics.conversionRate)}</Typography>
+                      <Typography variant="caption" color="text.secondary">Conversion Rate</Typography>
+                    </Box>
+                  </Box>
+                  <LinearProgress
+                    variant="determinate"
+                    value={Math.min(leadAnalytics.conversionRate, 100)}
+                    sx={{ height: 16, borderRadius: 8 }}
+                    color="success"
+                  />
+                  <Typography variant="caption" color="text.secondary" sx={{ mt: 1, textAlign: 'center' }}>
+                    {leadAnalytics.convertedLeads} of {leadAnalytics.totalLeads} leads converted to opportunities
+                  </Typography>
+                  {leadAnalytics.bySource && Object.keys(leadAnalytics.bySource).length > 0 && (
+                    <Box sx={{ mt: 2 }}>
+                      <Typography variant="caption" fontWeight={600}>Leads by Source:</Typography>
+                      <ResponsiveContainer width="100%" height={120}>
+                        <PieChart>
+                          <Pie
+                            data={Object.entries(leadAnalytics.bySource).map(([name, value]) => ({ name, value }))}
+                            cx="50%" cy="50%" outerRadius={50} dataKey="value" label={({ name }) => name}
+                          >
+                            {Object.keys(leadAnalytics.bySource).map((_, i) => (
+                              <Cell key={i} fill={STAGE_COLORS[i % STAGE_COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </Box>
+                  )}
+                </Box>
+              ) : (
+                <Box display="flex" alignItems="center" justifyContent="center" height="100%">
+                  <Typography color="text.secondary">No lead data available</Typography>
+                </Box>
+              )}
+            </ChartWidget>
+          </Grid>
         </Grid>
       </TabPanel>
 
@@ -569,6 +737,62 @@ const ReportsPage: React.FC = () => {
               ) : (
                 <Box display="flex" alignItems="center" justifyContent="center" height="100%">
                   <Typography color="text.secondary">No lead source data yet</Typography>
+                </Box>
+              )}
+            </ChartWidget>
+          </Grid>
+
+          {/* Monthly Revenue Trend */}
+          <Grid item xs={12}>
+            <ChartWidget title="Monthly Revenue Trend" height={320}>
+              {revenueTrend && revenueTrend.monthly && revenueTrend.monthly.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={revenueTrend.monthly}>
+                    <defs>
+                      <linearGradient id="colorWon" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#059669" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#059669" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="colorPipeline" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#1976d2" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#1976d2" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis tickFormatter={(v) => `$${v / 1000}k`} />
+                    <Tooltip formatter={(v: number) => fmtCurrency(v)} />
+                    <Legend />
+                    <Area type="monotone" dataKey="wonRevenue" name="Won Revenue" stroke="#059669" fill="url(#colorWon)" strokeWidth={2} />
+                    <Area type="monotone" dataKey="pipeline" name="Pipeline Created" stroke="#1976d2" fill="url(#colorPipeline)" strokeWidth={2} />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <Box display="flex" alignItems="center" justifyContent="center" height="100%">
+                  <Typography color="text.secondary">No trend data available yet</Typography>
+                </Box>
+              )}
+            </ChartWidget>
+          </Grid>
+
+          {/* Deal Volume Trend */}
+          <Grid item xs={12}>
+            <ChartWidget title="Monthly Deal Volume" height={280}>
+              {revenueTrend && revenueTrend.monthly && revenueTrend.monthly.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={revenueTrend.monthly}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="month" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Line type="monotone" dataKey="dealsWon" name="Deals Won" stroke="#059669" strokeWidth={2} dot={{ r: 4 }} />
+                    <Line type="monotone" dataKey="dealsCreated" name="Deals Created" stroke="#7c3aed" strokeWidth={2} dot={{ r: 4 }} />
+                  </LineChart>
+                </ResponsiveContainer>
+              ) : (
+                <Box display="flex" alignItems="center" justifyContent="center" height="100%">
+                  <Typography color="text.secondary">No deal volume data yet</Typography>
                 </Box>
               )}
             </ChartWidget>

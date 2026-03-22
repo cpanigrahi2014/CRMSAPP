@@ -238,6 +238,60 @@ public class ContactController {
         return ResponseEntity.ok(ApiResponse.success(contactService.getAnalytics()));
     }
 
+    // ── Notes ──────────────────────────────────────────────────
+    @PostMapping("/{contactId}/notes")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'USER')")
+    @Operation(summary = "Add a note to a contact")
+    public ResponseEntity<ApiResponse<ContactNoteResponse>> addNote(
+            @PathVariable UUID contactId,
+            @Valid @RequestBody ContactNoteRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        ContactNoteResponse response = contactService.addNote(contactId, request, principal.getUserId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response, "Note added"));
+    }
+
+    @GetMapping("/{contactId}/notes")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'USER')")
+    @Operation(summary = "Get all notes for a contact")
+    public ResponseEntity<ApiResponse<List<ContactNoteResponse>>> getNotes(@PathVariable UUID contactId) {
+        return ResponseEntity.ok(ApiResponse.success(contactService.getNotes(contactId)));
+    }
+
+    @DeleteMapping("/notes/{noteId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @Operation(summary = "Delete a note")
+    public ResponseEntity<ApiResponse<Void>> deleteNote(@PathVariable UUID noteId) {
+        contactService.deleteNote(noteId);
+        return ResponseEntity.ok(ApiResponse.success(null, "Note deleted"));
+    }
+
+    // ── Attachments ────────────────────────────────────────────
+    @PostMapping("/{contactId}/attachments")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'USER')")
+    @Operation(summary = "Add an attachment to a contact")
+    public ResponseEntity<ApiResponse<ContactAttachmentResponse>> addAttachment(
+            @PathVariable UUID contactId,
+            @Valid @RequestBody ContactAttachmentRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        ContactAttachmentResponse response = contactService.addAttachment(contactId, request, principal.getUserId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response, "Attachment added"));
+    }
+
+    @GetMapping("/{contactId}/attachments")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'USER')")
+    @Operation(summary = "Get all attachments for a contact")
+    public ResponseEntity<ApiResponse<List<ContactAttachmentResponse>>> getAttachments(@PathVariable UUID contactId) {
+        return ResponseEntity.ok(ApiResponse.success(contactService.getAttachments(contactId)));
+    }
+
+    @DeleteMapping("/attachments/{attachmentId}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @Operation(summary = "Delete an attachment")
+    public ResponseEntity<ApiResponse<Void>> deleteAttachment(@PathVariable UUID attachmentId) {
+        contactService.deleteAttachment(attachmentId);
+        return ResponseEntity.ok(ApiResponse.success(null, "Attachment deleted"));
+    }
+
     // ── Import / Export ──────────────────────────────────────
     @PostMapping("/import")
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")

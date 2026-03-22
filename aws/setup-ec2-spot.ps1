@@ -125,7 +125,8 @@ if (-not $keyExistsInAws) {
         exit 1
     }
 
-    $keyResult | Out-File -FilePath $keyFile -Encoding ASCII -NoNewline
+    # Use Set-Content (not Out-File) to preserve PEM line breaks without BOM
+    [System.IO.File]::WriteAllText($keyFile, ($keyResult -join "`n"))
     Write-Ok "Key saved to: $keyFile"
 }
 

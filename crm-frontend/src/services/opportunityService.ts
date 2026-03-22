@@ -28,6 +28,9 @@ import type {
   PipelinePerformance,
   SalesQuota,
   CreateSalesQuotaRequest,
+  PipelineStage,
+  PipelineStageRequest,
+  RevenueTrend,
 } from '../types';
 
 const BASE = '/api/v1/opportunities';
@@ -160,6 +163,10 @@ export const opportunityService = {
   getPerformance: () =>
     api.get<ApiResponse<PipelinePerformance>>(`${BASE}/analytics/performance`).then((r) => r.data),
 
+  /* ---- Revenue Trend ---- */
+  getRevenueTrend: () =>
+    api.get<ApiResponse<RevenueTrend>>(`${BASE}/analytics/revenue-trend`).then((r) => r.data),
+
   /* ---- Pipeline View ---- */
   getPipelineView: () =>
     api.get<ApiResponse<Record<string, Opportunity[]>>>(`${BASE}/pipeline`).then((r) => r.data),
@@ -194,4 +201,23 @@ export const opportunityService = {
 
   exportCsv: () =>
     api.get<string>(`${BASE}/export`, { responseType: 'text' as any }).then((r) => r.data),
+
+  /* ---- Pipeline Stages (Customizable) ---- */
+  getPipelineStages: () =>
+    api.get<ApiResponse<PipelineStage[]>>(`${BASE}/pipeline-stages`).then((r) => r.data),
+
+  getAllPipelineStages: () =>
+    api.get<ApiResponse<PipelineStage[]>>(`${BASE}/pipeline-stages/all`).then((r) => r.data),
+
+  createPipelineStage: (data: PipelineStageRequest) =>
+    api.post<ApiResponse<PipelineStage>>(`${BASE}/pipeline-stages`, data).then((r) => r.data),
+
+  updatePipelineStage: (id: string, data: PipelineStageRequest) =>
+    api.put<ApiResponse<PipelineStage>>(`${BASE}/pipeline-stages/${id}`, data).then((r) => r.data),
+
+  deletePipelineStage: (id: string) =>
+    api.delete<ApiResponse<void>>(`${BASE}/pipeline-stages/${id}`).then((r) => r.data),
+
+  reorderPipelineStages: (stageIds: string[]) =>
+    api.put<ApiResponse<PipelineStage[]>>(`${BASE}/pipeline-stages/reorder`, stageIds).then((r) => r.data),
 };

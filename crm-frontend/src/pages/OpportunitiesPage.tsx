@@ -15,6 +15,16 @@ import {
   Stack,
   Link,
   Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Table,
+  TableHead,
+  TableBody,
+  TableRow,
+  TableCell,
+  Chip,
 } from '@mui/material';
 import {
   ViewKanban as KanbanIcon,
@@ -22,33 +32,27 @@ import {
   Add as AddIcon,
   FileUpload as ImportIcon,
   FileDownload as ExportIcon,
+  Settings as SettingsIcon,
+  Delete as DeleteIcon,
+  Edit as EditIcon,
 } from '@mui/icons-material';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { useSnackbar } from 'notistack';
 import { PageHeader, StatusChip, DataTable, ModalForm } from '../components';
 import KanbanBoard, { KanbanColumn } from '../components/KanbanBoard';
 import { opportunityService } from '../services';
-import { Opportunity, OpportunityStage } from '../types';
+import { Opportunity, OpportunityStage, PipelineStage } from '../types';
 
-const STAGES: OpportunityStage[] = [
-  'PROSPECTING',
-  'QUALIFICATION',
-  'NEEDS_ANALYSIS',
-  'PROPOSAL',
-  'NEGOTIATION',
-  'CLOSED_WON',
-  'CLOSED_LOST',
+/* Fallback stages used while loading or if API fails */
+const DEFAULT_STAGES: PipelineStage[] = [
+  { id: '1', name: 'PROSPECTING', displayName: 'Prospecting', displayOrder: 0, color: '#1976d2', defaultProbability: 10, forecastCategory: 'PIPELINE', closedWon: false, closedLost: false, active: true, createdAt: '', updatedAt: '' },
+  { id: '2', name: 'QUALIFICATION', displayName: 'Qualification', displayOrder: 1, color: '#7c3aed', defaultProbability: 25, forecastCategory: 'PIPELINE', closedWon: false, closedLost: false, active: true, createdAt: '', updatedAt: '' },
+  { id: '3', name: 'NEEDS_ANALYSIS', displayName: 'Needs Analysis', displayOrder: 2, color: '#8b5cf6', defaultProbability: 40, forecastCategory: 'PIPELINE', closedWon: false, closedLost: false, active: true, createdAt: '', updatedAt: '' },
+  { id: '4', name: 'PROPOSAL', displayName: 'Proposal', displayOrder: 3, color: '#d97706', defaultProbability: 60, forecastCategory: 'BEST_CASE', closedWon: false, closedLost: false, active: true, createdAt: '', updatedAt: '' },
+  { id: '5', name: 'NEGOTIATION', displayName: 'Negotiation', displayOrder: 4, color: '#0891b2', defaultProbability: 80, forecastCategory: 'COMMIT', closedWon: false, closedLost: false, active: true, createdAt: '', updatedAt: '' },
+  { id: '6', name: 'CLOSED_WON', displayName: 'Closed Won', displayOrder: 5, color: '#059669', defaultProbability: 100, forecastCategory: 'CLOSED', closedWon: true, closedLost: false, active: true, createdAt: '', updatedAt: '' },
+  { id: '7', name: 'CLOSED_LOST', displayName: 'Closed Lost', displayOrder: 6, color: '#dc2626', defaultProbability: 0, forecastCategory: 'CLOSED', closedWon: false, closedLost: true, active: true, createdAt: '', updatedAt: '' },
 ];
-
-const STAGE_COLORS: Record<string, string> = {
-  PROSPECTING: '#1976d2',
-  QUALIFICATION: '#7c3aed',
-  NEEDS_ANALYSIS: '#8b5cf6',
-  PROPOSAL: '#d97706',
-  NEGOTIATION: '#0891b2',
-  CLOSED_WON: '#059669',
-  CLOSED_LOST: '#dc2626',
-};
 
 const emptyOpp = {
   name: '',
@@ -69,6 +73,7 @@ const OpportunitiesPage: React.FC = () => {
   const [view, setView] = useState<'kanban' | 'list'>('kanban');
 
   const [opportunities, setOpportunities] = useState<Opportunity[]>([]);
+  const [pipelineStages, setPipelineStages] = useState<PipelineStage[]>(DEFAULT_STAGES);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
 
@@ -85,6 +90,17 @@ const OpportunitiesPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const importInputRef = React.useRef<HTMLInputElement>(null);
 
+  // stage management
+  const [stageDialogOpen, setStageDialogOpen] = useState(false);
+  const [stageFormOpen, setStageFormOpen] = useState(false);
+  const [editingStageId, setEditingStageId] = useState<string | null>(null);
+  const [stageForm, setStageForm] = useState({
+    name: '', displayName: '', displayOrder: 0, color: '#1976d2',
+    defaultProbability: 0, forecastCategory: 'PIPELINE',
+    closedWon: false, closedLost: false, active: true,
+  });
+  const [stageSaving, setStageSaving] = useState(false);
+
   /* ---- fetch ---- */
   const fetchOpps = useCallback(async () => {
     setLoading(true);
@@ -99,6 +115,18 @@ const OpportunitiesPage: React.FC = () => {
   }, [enqueueSnackbar]);
 
   useEffect(() => { fetchOpps(); }, [fetchOpps]);
+
+  /* ---- load pipeline stages ---- */
+  useEffect(() => {
+    opportunityService.getPipelineStages()
+      .then((res) => {
+        const stages = res.data;
+        if (Array.isArray(stages) && stages.length > 0) {
+          setPipelineStages(stages);
+        }
+      })
+      .catch(() => { /* keep defaults */ });
+  }, []);
 
   /* ---- filtered ---- */
   const filtered = useMemo(() => {
@@ -124,12 +152,12 @@ const OpportunitiesPage: React.FC = () => {
 
   /* ---- Kanban columns ---- */
   const kanbanColumns = useMemo<KanbanColumn[]>(() => {
-    return STAGES.map((stage) => ({
-      id: stage,
-      title: stage.replace(/_/g, ' '),
-      color: STAGE_COLORS[stage],
+    return pipelineStages.map((stage) => ({
+      id: stage.name,
+      title: stage.displayName,
+      color: stage.color,
       items: filtered
-        .filter((o) => o.stage === stage)
+        .filter((o) => o.stage === stage.name)
         .map((o) => ({
           id: o.id,
           title: o.name,
@@ -139,7 +167,7 @@ const OpportunitiesPage: React.FC = () => {
           tagColor: o.probability && o.probability >= 70 ? ('success' as const) : ('info' as const),
         })),
     }));
-  }, [filtered]);
+  }, [filtered, pipelineStages]);
 
   /* ---- drag handler ---- */
   const handleDragEnd = async (itemId: string, _from: string, to: string) => {
@@ -213,6 +241,69 @@ const OpportunitiesPage: React.FC = () => {
     if (importInputRef.current) importInputRef.current.value = '';
   };
 
+  /* ---- stage management ---- */
+  const fetchStages = async () => {
+    try {
+      const res = await opportunityService.getAllPipelineStages();
+      const stages = res.data;
+      if (Array.isArray(stages) && stages.length > 0) {
+        setPipelineStages(stages.filter((s) => s.active));
+      }
+    } catch { /* ignore */ }
+  };
+
+  const openStageCreate = () => {
+    setEditingStageId(null);
+    setStageForm({
+      name: '', displayName: '', displayOrder: pipelineStages.length, color: '#1976d2',
+      defaultProbability: 0, forecastCategory: 'PIPELINE',
+      closedWon: false, closedLost: false, active: true,
+    });
+    setStageFormOpen(true);
+  };
+
+  const openStageEdit = (stage: PipelineStage) => {
+    setEditingStageId(stage.id);
+    setStageForm({
+      name: stage.name, displayName: stage.displayName,
+      displayOrder: stage.displayOrder, color: stage.color,
+      defaultProbability: stage.defaultProbability,
+      forecastCategory: stage.forecastCategory,
+      closedWon: stage.closedWon, closedLost: stage.closedLost,
+      active: stage.active,
+    });
+    setStageFormOpen(true);
+  };
+
+  const handleStageSubmit = async () => {
+    setStageSaving(true);
+    try {
+      if (editingStageId) {
+        await opportunityService.updatePipelineStage(editingStageId, stageForm);
+        enqueueSnackbar('Stage updated', { variant: 'success' });
+      } else {
+        await opportunityService.createPipelineStage(stageForm);
+        enqueueSnackbar('Stage created', { variant: 'success' });
+      }
+      setStageFormOpen(false);
+      fetchStages();
+    } catch {
+      enqueueSnackbar('Stage operation failed', { variant: 'error' });
+    } finally {
+      setStageSaving(false);
+    }
+  };
+
+  const handleStageDelete = async (id: string) => {
+    try {
+      await opportunityService.deletePipelineStage(id);
+      enqueueSnackbar('Stage deleted', { variant: 'success' });
+      fetchStages();
+    } catch {
+      enqueueSnackbar('Failed to delete stage', { variant: 'error' });
+    }
+  };
+
   /* ---- list columns ---- */
   const listColumns = useMemo<GridColDef[]>(
     () => [
@@ -262,6 +353,9 @@ const OpportunitiesPage: React.FC = () => {
             <Tooltip title="New Opportunity">
               <IconButton color="primary" onClick={openCreate}><AddIcon /></IconButton>
             </Tooltip>
+            <Tooltip title="Manage Stages">
+              <IconButton onClick={() => { fetchStages(); setStageDialogOpen(true); }}><SettingsIcon /></IconButton>
+            </Tooltip>
           </Stack>
         }
       />
@@ -286,7 +380,7 @@ const OpportunitiesPage: React.FC = () => {
           sx={{ minWidth: 150 }}
         >
           <MenuItem value="ALL">All Stages</MenuItem>
-          {STAGES.map((s) => <MenuItem key={s} value={s}>{s.replace(/_/g, ' ')}</MenuItem>)}
+          {pipelineStages.map((s) => <MenuItem key={s.name} value={s.name}>{s.displayName}</MenuItem>)}
         </TextField>
         <TextField
           size="small" select label="Lead Source" value={filterSource}
@@ -345,8 +439,8 @@ const OpportunitiesPage: React.FC = () => {
           </Grid>
           <Grid item xs={12} sm={6}>
             <TextField fullWidth select label="Stage" value={formData.stage} onChange={handleChange('stage')}>
-              {STAGES.map((s) => (
-                <MenuItem key={s} value={s}>{s.replace(/_/g, ' ')}</MenuItem>
+              {pipelineStages.map((s) => (
+                <MenuItem key={s.name} value={s.name}>{s.displayName}</MenuItem>
               ))}
             </TextField>
           </Grid>
@@ -375,6 +469,109 @@ const OpportunitiesPage: React.FC = () => {
           </Grid>
         </Grid>
       </ModalForm>
+
+      {/* Stage Management Dialog */}
+      <Dialog open={stageDialogOpen} onClose={() => setStageDialogOpen(false)} maxWidth="md" fullWidth>
+        <DialogTitle sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          Manage Pipeline Stages
+          <Button variant="contained" size="small" startIcon={<AddIcon />} onClick={openStageCreate}>Add Stage</Button>
+        </DialogTitle>
+        <DialogContent>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>Order</TableCell>
+                <TableCell>Name</TableCell>
+                <TableCell>Display Name</TableCell>
+                <TableCell>Color</TableCell>
+                <TableCell>Probability</TableCell>
+                <TableCell>Forecast</TableCell>
+                <TableCell>Type</TableCell>
+                <TableCell>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {pipelineStages.map((stage) => (
+                <TableRow key={stage.id}>
+                  <TableCell>{stage.displayOrder}</TableCell>
+                  <TableCell>{stage.name}</TableCell>
+                  <TableCell>{stage.displayName}</TableCell>
+                  <TableCell><Chip size="small" sx={{ bgcolor: stage.color, color: '#fff' }} label={stage.color} /></TableCell>
+                  <TableCell>{stage.defaultProbability}%</TableCell>
+                  <TableCell>{stage.forecastCategory}</TableCell>
+                  <TableCell>
+                    {stage.closedWon ? <Chip size="small" label="Won" color="success" /> :
+                     stage.closedLost ? <Chip size="small" label="Lost" color="error" /> :
+                     <Chip size="small" label="Open" variant="outlined" />}
+                  </TableCell>
+                  <TableCell>
+                    <IconButton size="small" onClick={() => openStageEdit(stage)}><EditIcon fontSize="small" /></IconButton>
+                    <IconButton size="small" color="error" onClick={() => handleStageDelete(stage.id)}><DeleteIcon fontSize="small" /></IconButton>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setStageDialogOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Stage Form Dialog */}
+      <Dialog open={stageFormOpen} onClose={() => setStageFormOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>{editingStageId ? 'Edit Stage' : 'New Stage'}</DialogTitle>
+        <DialogContent>
+          <Grid container spacing={2} sx={{ mt: 0 }}>
+            <Grid item xs={12} sm={6}>
+              <TextField fullWidth label="Name (key)" value={stageForm.name}
+                onChange={(e) => setStageForm((p) => ({ ...p, name: e.target.value.toUpperCase().replace(/\s+/g, '_') }))} required />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField fullWidth label="Display Name" value={stageForm.displayName}
+                onChange={(e) => setStageForm((p) => ({ ...p, displayName: e.target.value }))} required />
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <TextField fullWidth label="Order" type="number" value={stageForm.displayOrder}
+                onChange={(e) => setStageForm((p) => ({ ...p, displayOrder: Number(e.target.value) }))} />
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <TextField fullWidth label="Color" type="color" value={stageForm.color}
+                onChange={(e) => setStageForm((p) => ({ ...p, color: e.target.value }))} />
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <TextField fullWidth label="Probability %" type="number" value={stageForm.defaultProbability}
+                onChange={(e) => setStageForm((p) => ({ ...p, defaultProbability: Number(e.target.value) }))} />
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <TextField fullWidth select label="Forecast" value={stageForm.forecastCategory}
+                onChange={(e) => setStageForm((p) => ({ ...p, forecastCategory: e.target.value }))}>
+                {['PIPELINE', 'BEST_CASE', 'COMMIT', 'CLOSED'].map((f) => <MenuItem key={f} value={f}>{f}</MenuItem>)}
+              </TextField>
+            </Grid>
+            <Grid item xs={6}>
+              <TextField fullWidth select label="Closed Won?" value={stageForm.closedWon ? 'yes' : 'no'}
+                onChange={(e) => setStageForm((p) => ({ ...p, closedWon: e.target.value === 'yes', closedLost: e.target.value === 'yes' ? false : p.closedLost }))}>
+                <MenuItem value="no">No</MenuItem>
+                <MenuItem value="yes">Yes</MenuItem>
+              </TextField>
+            </Grid>
+            <Grid item xs={6}>
+              <TextField fullWidth select label="Closed Lost?" value={stageForm.closedLost ? 'yes' : 'no'}
+                onChange={(e) => setStageForm((p) => ({ ...p, closedLost: e.target.value === 'yes', closedWon: e.target.value === 'yes' ? false : p.closedWon }))}>
+                <MenuItem value="no">No</MenuItem>
+                <MenuItem value="yes">Yes</MenuItem>
+              </TextField>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setStageFormOpen(false)}>Cancel</Button>
+          <Button variant="contained" onClick={handleStageSubmit} disabled={stageSaving}>
+            {stageSaving ? 'Saving...' : editingStageId ? 'Update' : 'Create'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };

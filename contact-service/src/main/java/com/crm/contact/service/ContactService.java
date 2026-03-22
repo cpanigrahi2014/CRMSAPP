@@ -36,6 +36,8 @@ public class ContactService {
     private final ContactTagRepository tagRepository;
     private final ContactCommunicationRepository communicationRepository;
     private final ContactActivityRepository activityRepository;
+    private final ContactNoteRepository noteRepository;
+    private final ContactAttachmentRepository attachmentRepository;
     private final ContactMapper contactMapper;
     private final EventPublisher eventPublisher;
 
@@ -449,6 +451,16 @@ public class ContactService {
         activityRepository.findByContactIdAndTenantIdOrderByCreatedAtDesc(duplicateId, tenantId, PageRequest.of(0, 10000))
                 .getContent().forEach(a -> { a.setContactId(primaryId); activityRepository.save(a); });
 
+        // Move notes from duplicate to primary
+        List<ContactNote> notes = noteRepository.findByContactIdAndDeletedFalse(duplicateId);
+        notes.forEach(n -> n.setContactId(primaryId));
+        noteRepository.saveAll(notes);
+
+        // Move attachments from duplicate to primary
+        List<ContactAttachment> attachments = attachmentRepository.findByContactIdAndDeletedFalse(duplicateId);
+        attachments.forEach(a -> a.setContactId(primaryId));
+        attachmentRepository.saveAll(attachments);
+
         // Soft-delete duplicate
         duplicate.setDeleted(true);
         contactRepository.save(duplicate);
@@ -617,5 +629,84 @@ public class ContactService {
             map.put(String.valueOf(row[0]), (Long) row[1]);
         }
         return map;
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Contact Notes
+    // ═══════════════════════════════════════════════════════════
+    @Transactional
+    public ContactNoteResponse addNote(UUID contactId, ContactNoteRequest request, String userId) {
+        String tenantId = TenantContext.getTenantId();
+        contactRepository.findByIdAndTenantIdAndDeletedFalse(contactId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Contact", "id", contactId));
+
+        ContactNote note = ContactNote.builder()
+                .contactId(contactId)
+                .content(request.getContent())
+                .build();
+        note.setTenantId(tenantId);
+        ContactNote saved = noteRepository.save(note);
+
+        recordActivity(contactId, tenantId, "NOTE_ADDED", "Note added", userId);
+        return contactMapper.toNoteResponse(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ContactNoteResponse> getNotes(UUID contactId) {
+        String tenantId = TenantContext.getTenantId();
+        contactRepository.findByIdAndTenantIdAndDeletedFalse(contactId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Contact", "id", contactId));
+        return noteRepository.findByContactIdAndTenantIdAndDeletedFalseOrderByCreatedAtDesc(contactId, tenantId)
+                .stream().map(contactMapper::toNoteResponse).toList();
+    }
+
+    @Transactional
+    public void deleteNote(UUID noteId) {
+        String tenantId = TenantContext.getTenantId();
+        ContactNote note = noteRepository.findByIdAndTenantIdAndDeletedFalse(noteId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("ContactNote", "id", noteId));
+        note.setDeleted(true);
+        noteRepository.save(note);
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Contact Attachments
+    // ═══════════════════════════════════════════════════════════
+    @Transactional
+    public ContactAttachmentResponse addAttachment(UUID contactId, ContactAttachmentRequest request, String userId) {
+        String tenantId = TenantContext.getTenantId();
+        contactRepository.findByIdAndTenantIdAndDeletedFalse(contactId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Contact", "id", contactId));
+
+        ContactAttachment attachment = ContactAttachment.builder()
+                .contactId(contactId)
+                .fileName(request.getFileName())
+                .fileUrl(request.getFileUrl())
+                .fileSize(request.getFileSize())
+                .fileType(request.getFileType())
+                .build();
+        attachment.setTenantId(tenantId);
+        ContactAttachment saved = attachmentRepository.save(attachment);
+
+        recordActivity(contactId, tenantId, "ATTACHMENT_ADDED", "File attached: " + request.getFileName(), userId);
+        return contactMapper.toAttachmentResponse(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ContactAttachmentResponse> getAttachments(UUID contactId) {
+        String tenantId = TenantContext.getTenantId();
+        contactRepository.findByIdAndTenantIdAndDeletedFalse(contactId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("Contact", "id", contactId));
+        return attachmentRepository.findByContactIdAndTenantIdAndDeletedFalseOrderByCreatedAtDesc(contactId, tenantId)
+                .stream().map(contactMapper::toAttachmentResponse).toList();
+    }
+
+    @Transactional
+    public void deleteAttachment(UUID attachmentId) {
+        String tenantId = TenantContext.getTenantId();
+        ContactAttachment attachment = attachmentRepository.findByIdAndTenantIdAndDeletedFalse(attachmentId, tenantId)
+                .orElseThrow(() -> new ResourceNotFoundException("ContactAttachment", "id", attachmentId));
+        attachment.setDeleted(true);
+        attachmentRepository.save(attachment);
     }
 }

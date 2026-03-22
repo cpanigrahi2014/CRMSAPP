@@ -414,6 +414,13 @@ public class OpportunityController {
         return ResponseEntity.ok(ApiResponse.success(opportunityService.getPipelinePerformance()));
     }
 
+    @GetMapping("/analytics/revenue-trend")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'USER')")
+    @Operation(summary = "Get monthly revenue trend (won revenue and pipeline over time)")
+    public ResponseEntity<ApiResponse<RevenueTrend>> getRevenueTrend() {
+        return ResponseEntity.ok(ApiResponse.success(opportunityService.getRevenueTrend()));
+    }
+
     // ─── Pipeline View (grouped by stage) ────────────────────────────
 
     @GetMapping("/pipeline")

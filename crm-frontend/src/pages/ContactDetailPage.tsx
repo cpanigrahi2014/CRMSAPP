@@ -1,6 +1,6 @@
 /* ============================================================
-   ContactDetailPage – 6-tab detail view for a contact
-   Tabs: Details | Communications | Timeline | Tags | Social & Consent | Analytics
+   ContactDetailPage – 8-tab detail view for a contact
+   Tabs: Details | Communications | Notes | Timeline | Tags | Attachments | Social & Consent | Analytics
    ============================================================ */
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
@@ -16,11 +16,13 @@ import {
   Email as EmailIcon, Phone as PhoneIcon, LinkedIn, Facebook, Twitter,
   Add as AddIcon, Delete as DeleteIcon, Send as SendIcon, CallMade, CallReceived,
   Timeline as TimelineIcon, Label as LabelIcon, Analytics as AnalyticsIcon,
+  NoteAdd as NoteAddIcon, AttachFile as AttachFileIcon,
 } from '@mui/icons-material';
 import { PageHeader, ConfirmDialog } from '../components';
 import { contactService } from '../services';
 import type {
   Contact, ContactCommunication, ContactActivity, ContactTag, ContactAnalytics,
+  ContactNote, ContactAttachment,
 } from '../types';
 import { useSnackbar } from 'notistack';
 
@@ -62,6 +64,15 @@ const ContactDetailPage: React.FC = () => {
 
   // Analytics
   const [analytics, setAnalytics] = useState<ContactAnalytics | null>(null);
+
+  // Notes
+  const [notes, setNotes] = useState<ContactNote[]>([]);
+  const [newNote, setNewNote] = useState('');
+
+  // Attachments
+  const [attachments, setAttachments] = useState<ContactAttachment[]>([]);
+  const [attachDialog, setAttachDialog] = useState(false);
+  const [attachForm, setAttachForm] = useState({ fileName: '', fileUrl: '', fileType: '' });
 
   /* ── Loaders ── */
   const fetchContact = useCallback(async () => {
@@ -107,14 +118,32 @@ const ContactDetailPage: React.FC = () => {
     } catch { /* silent */ }
   }, []);
 
+  const fetchNotes = useCallback(async () => {
+    if (!id) return;
+    try {
+      const res = await contactService.getNotes(id);
+      setNotes(Array.isArray(res.data) ? res.data : []);
+    } catch { /* silent */ }
+  }, [id]);
+
+  const fetchAttachments = useCallback(async () => {
+    if (!id) return;
+    try {
+      const res = await contactService.getAttachments(id);
+      setAttachments(Array.isArray(res.data) ? res.data : []);
+    } catch { /* silent */ }
+  }, [id]);
+
   useEffect(() => { fetchContact(); }, [fetchContact]);
 
   useEffect(() => {
     if (tab === 1) fetchComms();
-    if (tab === 2) fetchActivities();
-    if (tab === 3) fetchTags();
-    if (tab === 5) fetchAnalytics();
-  }, [tab, fetchComms, fetchActivities, fetchTags, fetchAnalytics]);
+    if (tab === 2) fetchNotes();
+    if (tab === 3) fetchActivities();
+    if (tab === 4) fetchTags();
+    if (tab === 5) fetchAttachments();
+    if (tab === 7) fetchAnalytics();
+  }, [tab, fetchComms, fetchNotes, fetchActivities, fetchTags, fetchAttachments, fetchAnalytics]);
 
   /* ── Edit mode ── */
   const startEdit = () => {
@@ -191,6 +220,43 @@ const ContactDetailPage: React.FC = () => {
     } catch { enqueueSnackbar('Failed to remove tag', { variant: 'error' }); }
   };
 
+  /* ── Notes ── */
+  const addNote = async () => {
+    if (!id || !newNote.trim()) return;
+    try {
+      await contactService.addNote(id, newNote.trim());
+      setNewNote('');
+      enqueueSnackbar('Note added', { variant: 'success' });
+      fetchNotes();
+    } catch { enqueueSnackbar('Failed to add note', { variant: 'error' }); }
+  };
+
+  const deleteNote = async (noteId: string) => {
+    try {
+      await contactService.deleteNote(noteId);
+      fetchNotes();
+    } catch { enqueueSnackbar('Failed to delete note', { variant: 'error' }); }
+  };
+
+  /* ── Attachments ── */
+  const addAttachment = async () => {
+    if (!id || !attachForm.fileName.trim() || !attachForm.fileUrl.trim()) return;
+    try {
+      await contactService.addAttachment(id, attachForm);
+      setAttachDialog(false);
+      setAttachForm({ fileName: '', fileUrl: '', fileType: '' });
+      enqueueSnackbar('Attachment added', { variant: 'success' });
+      fetchAttachments();
+    } catch { enqueueSnackbar('Failed to add attachment', { variant: 'error' }); }
+  };
+
+  const deleteAttachment = async (attachmentId: string) => {
+    try {
+      await contactService.deleteAttachment(attachmentId);
+      fetchAttachments();
+    } catch { enqueueSnackbar('Failed to delete attachment', { variant: 'error' }); }
+  };
+
   if (loading) return <LinearProgress />;
   if (!contact) return <Typography>Contact not found</Typography>;
 
@@ -243,8 +309,10 @@ const ContactDetailPage: React.FC = () => {
         <Tabs value={tab} onChange={(_, v) => setTab(v)} variant="scrollable" scrollButtons="auto">
           <Tab label="Details" />
           <Tab label="Communications" icon={<EmailIcon />} iconPosition="start" />
+          <Tab label="Notes" icon={<NoteAddIcon />} iconPosition="start" />
           <Tab label="Timeline" icon={<TimelineIcon />} iconPosition="start" />
           <Tab label="Tags" icon={<LabelIcon />} iconPosition="start" />
+          <Tab label="Attachments" icon={<AttachFileIcon />} iconPosition="start" />
           <Tab label="Social & Consent" />
           <Tab label="Analytics" icon={<AnalyticsIcon />} iconPosition="start" />
         </Tabs>
@@ -397,8 +465,49 @@ const ContactDetailPage: React.FC = () => {
         </Dialog>
       </TabPanel>
 
-      {/* ── Tab 2: Activity Timeline ── */}
+      {/* ── Tab 2: Notes ── */}
       <TabPanel value={tab} index={2}>
+        <Paper sx={{ p: 3 }}>
+          <Typography variant="h6" sx={{ mb: 2 }}>Notes</Typography>
+          <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+            <TextField
+              fullWidth
+              size="small"
+              label="Add a note"
+              multiline
+              minRows={2}
+              value={newNote}
+              onChange={(e) => setNewNote(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter' && e.ctrlKey) addNote(); }}
+            />
+            <Button variant="contained" startIcon={<AddIcon />} onClick={addNote} sx={{ alignSelf: 'flex-start' }}>Add</Button>
+          </Stack>
+          {notes.length === 0 ? (
+            <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>No notes yet</Typography>
+          ) : (
+            <Stack spacing={1}>
+              {notes.map((n) => (
+                <Paper key={n.id} variant="outlined" sx={{ p: 2 }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
+                    <Box sx={{ flex: 1 }}>
+                      <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>{n.content}</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {n.createdBy ? `By ${n.createdBy} • ` : ''}{n.createdAt ? new Date(n.createdAt).toLocaleString() : ''}
+                      </Typography>
+                    </Box>
+                    <IconButton size="small" color="error" onClick={() => deleteNote(n.id)}>
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Stack>
+                </Paper>
+              ))}
+            </Stack>
+          )}
+        </Paper>
+      </TabPanel>
+
+      {/* ── Tab 3: Activity Timeline ── */}
+      <TabPanel value={tab} index={3}>
         <Paper sx={{ p: 3 }}>
           <Typography variant="h6" sx={{ mb: 2 }}>Activity Timeline</Typography>
           {activities.length === 0 ? (
@@ -423,8 +532,8 @@ const ContactDetailPage: React.FC = () => {
         </Paper>
       </TabPanel>
 
-      {/* ── Tab 3: Tags ── */}
-      <TabPanel value={tab} index={3}>
+      {/* ── Tab 4: Tags ── */}
+      <TabPanel value={tab} index={4}>
         <Paper sx={{ p: 3 }}>
           <Typography variant="h6" sx={{ mb: 2 }}>Tags</Typography>
           <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
@@ -441,8 +550,84 @@ const ContactDetailPage: React.FC = () => {
         </Paper>
       </TabPanel>
 
-      {/* ── Tab 4: Social & Consent ── */}
-      <TabPanel value={tab} index={4}>
+      {/* ── Tab 5: Attachments ── */}
+      <TabPanel value={tab} index={5}>
+        <Paper sx={{ p: 3 }}>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+            <Typography variant="h6">Attachments</Typography>
+            <Button variant="contained" startIcon={<AddIcon />} onClick={() => setAttachDialog(true)}>Add Attachment</Button>
+          </Stack>
+          {attachments.length === 0 ? (
+            <Typography color="text.secondary" sx={{ py: 4, textAlign: 'center' }}>No attachments yet</Typography>
+          ) : (
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>File Name</TableCell>
+                  <TableCell>Type</TableCell>
+                  <TableCell>Size</TableCell>
+                  <TableCell>Date</TableCell>
+                  <TableCell />
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {attachments.map((a) => (
+                  <TableRow key={a.id} hover>
+                    <TableCell>
+                      <Typography
+                        variant="body2"
+                        component="a"
+                        href={a.fileUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        sx={{ color: 'primary.main', textDecoration: 'none' }}
+                      >
+                        {a.fileName}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>{a.fileType || '—'}</TableCell>
+                    <TableCell>{a.fileSize ? `${(a.fileSize / 1024).toFixed(1)} KB` : '—'}</TableCell>
+                    <TableCell>{a.createdAt ? new Date(a.createdAt).toLocaleString() : ''}</TableCell>
+                    <TableCell>
+                      <IconButton size="small" color="error" onClick={() => deleteAttachment(a.id)}>
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </Paper>
+
+        {/* Attachment dialog */}
+        <Dialog open={attachDialog} onClose={() => setAttachDialog(false)} maxWidth="sm" fullWidth>
+          <DialogTitle>Add Attachment</DialogTitle>
+          <DialogContent>
+            <Grid container spacing={2} sx={{ mt: 0 }}>
+              <Grid item xs={12}>
+                <TextField fullWidth label="File Name" value={attachForm.fileName}
+                  onChange={(e) => setAttachForm((p) => ({ ...p, fileName: e.target.value }))} />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField fullWidth label="File URL" value={attachForm.fileUrl}
+                  onChange={(e) => setAttachForm((p) => ({ ...p, fileUrl: e.target.value }))} />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField fullWidth label="File Type (e.g. PDF, DOCX)" value={attachForm.fileType}
+                  onChange={(e) => setAttachForm((p) => ({ ...p, fileType: e.target.value }))} />
+              </Grid>
+            </Grid>
+          </DialogContent>
+          <DialogActions>
+            <Button onClick={() => setAttachDialog(false)}>Cancel</Button>
+            <Button variant="contained" onClick={addAttachment}>Save</Button>
+          </DialogActions>
+        </Dialog>
+      </TabPanel>
+
+      {/* ── Tab 6: Social & Consent ── */}
+      <TabPanel value={tab} index={6}>
         <Grid container spacing={3}>
           <Grid item xs={12} md={6}>
             <Paper sx={{ p: 3 }}>
@@ -510,8 +695,8 @@ const ContactDetailPage: React.FC = () => {
         </Grid>
       </TabPanel>
 
-      {/* ── Tab 5: Analytics ── */}
-      <TabPanel value={tab} index={5}>
+      {/* ── Tab 7: Analytics ── */}
+      <TabPanel value={tab} index={7}>
         <Paper sx={{ p: 3 }}>
           <Typography variant="h6" sx={{ mb: 2 }}>Contact Analytics (Tenant-Wide)</Typography>
           {analytics ? (

@@ -57,6 +57,9 @@ import {
   TrendingUp as TrendingUpIcon,
   Cancel as CancelIcon,
   PlayArrow as PlayIcon,
+  Sync as SyncIcon,
+  ContentCopy as CopyIcon,
+  LinkOff as LinkOffIcon,
 } from '@mui/icons-material';
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -72,6 +75,7 @@ import type {
   RecurrenceRule,
   ActivityAnalytics,
   CreateActivityRequest,
+  CalendarFeedToken,
 } from '../types';
 import { useSnackbar } from 'notistack';
 
@@ -176,6 +180,12 @@ const ActivitiesPage: React.FC = () => {
   const [analytics, setAnalytics] = useState<ActivityAnalytics | null>(null);
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
 
+  /* Calendar Sync state */
+  const [calTokens, setCalTokens] = useState<CalendarFeedToken[]>([]);
+  const [calTokensLoading, setCalTokensLoading] = useState(false);
+  const [newTokenName, setNewTokenName] = useState('');
+  const [copiedToken, setCopiedToken] = useState<string | null>(null);
+
   /* ---- Fetch list ---- */
   const fetchActivities = useCallback(async () => {
     setLoading(true);
@@ -230,12 +240,25 @@ const ActivitiesPage: React.FC = () => {
     }
   }, [enqueueSnackbar]);
 
+  const fetchCalTokens = useCallback(async () => {
+    setCalTokensLoading(true);
+    try {
+      const res = await activityService.getCalendarTokens();
+      setCalTokens(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      // Silently handle - calendar tokens are optional
+    } finally {
+      setCalTokensLoading(false);
+    }
+  }, []);
+
   /* Load data when tab changes */
   useEffect(() => {
     if (mainTab === 1) fetchTimeline();
     if (mainTab === 2) fetchUpcoming();
     if (mainTab === 3) fetchAnalytics();
-  }, [mainTab, fetchTimeline, fetchUpcoming, fetchAnalytics]);
+    if (mainTab === 4) fetchCalTokens();
+  }, [mainTab, fetchTimeline, fetchUpcoming, fetchAnalytics, fetchCalTokens]);
 
   /* ---- Filtering ---- */
   const filtered = useMemo(() => {
@@ -347,6 +370,52 @@ const ActivitiesPage: React.FC = () => {
       fetchActivities();
     } catch {
       enqueueSnackbar('Failed to complete activity', { variant: 'error' });
+    }
+  };
+
+  /* ── Calendar token handlers ──────────────────────────────── */
+  const handleCreateToken = async () => {
+    if (!newTokenName.trim()) return;
+    try {
+      await activityService.createCalendarToken(newTokenName.trim());
+      setNewTokenName('');
+      enqueueSnackbar('Calendar feed token created', { variant: 'success' });
+      fetchCalTokens();
+    } catch {
+      enqueueSnackbar('Failed to create token', { variant: 'error' });
+    }
+  };
+
+  const handleRevokeToken = async (id: string) => {
+    try {
+      await activityService.revokeCalendarToken(id);
+      enqueueSnackbar('Token revoked', { variant: 'success' });
+      fetchCalTokens();
+    } catch {
+      enqueueSnackbar('Failed to revoke token', { variant: 'error' });
+    }
+  };
+
+  const handleCopyFeedUrl = (token: string) => {
+    const url = activityService.getCalendarFeedUrl(token);
+    navigator.clipboard.writeText(url);
+    setCopiedToken(token);
+    enqueueSnackbar('Calendar feed URL copied!', { variant: 'success' });
+    setTimeout(() => setCopiedToken(null), 3000);
+  };
+
+  const handleExportIcs = async () => {
+    try {
+      const blob = await activityService.exportCalendar();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'activities.ics';
+      a.click();
+      window.URL.revokeObjectURL(url);
+      enqueueSnackbar('Calendar exported', { variant: 'success' });
+    } catch {
+      enqueueSnackbar('Failed to export calendar', { variant: 'error' });
     }
   };
 
@@ -489,6 +558,7 @@ const ActivitiesPage: React.FC = () => {
           <Tab icon={<TimelineIcon />} iconPosition="start" label="Timeline" />
           <Tab icon={<ScheduleIcon />} iconPosition="start" label="Calendar" />
           <Tab icon={<AnalyticsIcon />} iconPosition="start" label="Analytics" />
+          <Tab icon={<SyncIcon />} iconPosition="start" label="Calendar Sync" />
         </Tabs>
       </Box>
 
@@ -736,9 +806,130 @@ const ActivitiesPage: React.FC = () => {
                   <Typography variant="h6" color="text.secondary">days</Typography>
                 </Paper>
               </Grid>
+
+              {/* Activities by Assignee */}
+              <Grid item xs={12}>
+                <Paper variant="outlined" sx={{ p: 2 }}>
+                  <Typography variant="subtitle1" fontWeight={600} sx={{ mb: 1 }}>Activities by Assignee</Typography>
+                  {analytics.countByAssignee && Object.keys(analytics.countByAssignee).length > 0 ? (
+                    <ResponsiveContainer width="100%" height={Math.max(200, Object.keys(analytics.countByAssignee).length * 36)}>
+                      <BarChart
+                        data={Object.entries(analytics.countByAssignee)
+                          .sort(([, a], [, b]) => b - a)
+                          .map(([name, value]) => ({ name: name.split('@')[0] || name, value }))}
+                        layout="vertical"
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis type="number" />
+                        <YAxis dataKey="name" type="category" width={120} />
+                        <RTooltip />
+                        <Bar dataKey="value" fill="#1976d2" radius={[0, 4, 4, 0]}>
+                          {Object.keys(analytics.countByAssignee).map((_, i) => (
+                            <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <Typography color="text.secondary" variant="body2">No assignee data available</Typography>
+                  )}
+                </Paper>
+              </Grid>
             </Grid>
           </Box>
         )}
+      </TabPanel>
+
+      {/* ================================================================
+         TAB 4 – Calendar Sync
+         ================================================================ */}
+      <TabPanel value={mainTab} index={4}>
+        <Grid container spacing={3}>
+          {/* iCal Feed Subscription */}
+          <Grid item xs={12} md={6}>
+            <Paper variant="outlined" sx={{ p: 3 }}>
+              <Typography variant="h6" sx={{ mb: 1 }}>📅 iCal Feed Subscription</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Generate a subscription URL to sync your CRM activities with Google Calendar, Outlook, or Apple Calendar.
+                Add this URL as a &quot;Subscribe to calendar&quot; in your calendar app.
+              </Typography>
+
+              {/* Create a new token */}
+              <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+                <TextField
+                  size="small"
+                  label="Feed Name"
+                  placeholder="e.g., Work CRM"
+                  value={newTokenName}
+                  onChange={(e) => setNewTokenName(e.target.value)}
+                  sx={{ flex: 1 }}
+                />
+                <Button variant="contained" onClick={handleCreateToken} disabled={!newTokenName.trim()}>
+                  Generate
+                </Button>
+              </Stack>
+
+              {/* Existing tokens */}
+              {calTokensLoading ? (
+                <Typography color="text.secondary">Loading…</Typography>
+              ) : calTokens.length === 0 ? (
+                <Typography color="text.secondary" variant="body2">No feed tokens yet. Create one above to get started.</Typography>
+              ) : (
+                <List dense disablePadding>
+                  {calTokens.map((t) => (
+                    <ListItem
+                      key={t.id}
+                      secondaryAction={
+                        <Stack direction="row" spacing={0.5}>
+                          <Tooltip title={copiedToken === t.token ? 'Copied!' : 'Copy feed URL'}>
+                            <IconButton size="small" onClick={() => handleCopyFeedUrl(t.token)}>
+                              <CopyIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Revoke token">
+                            <IconButton size="small" color="error" onClick={() => handleRevokeToken(t.id)}>
+                              <LinkOffIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        </Stack>
+                      }
+                    >
+                      <ListItemIcon><SyncIcon /></ListItemIcon>
+                      <ListItemText
+                        primary={t.name}
+                        secondary={`Created: ${new Date(t.createdAt).toLocaleDateString()}${t.lastAccessedAt ? ` · Last used: ${new Date(t.lastAccessedAt).toLocaleDateString()}` : ''}`}
+                      />
+                    </ListItem>
+                  ))}
+                </List>
+              )}
+            </Paper>
+          </Grid>
+
+          {/* Export / Download */}
+          <Grid item xs={12} md={6}>
+            <Paper variant="outlined" sx={{ p: 3 }}>
+              <Typography variant="h6" sx={{ mb: 1 }}>⬇️ Export Calendar</Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Download all your activities as an .ics file that you can import into any calendar application.
+              </Typography>
+              <Button variant="outlined" startIcon={<ScheduleIcon />} onClick={handleExportIcs}>
+                Download .ics File
+              </Button>
+            </Paper>
+
+            <Paper variant="outlined" sx={{ p: 3, mt: 2 }}>
+              <Typography variant="h6" sx={{ mb: 1 }}>🔗 How to Subscribe</Typography>
+              <Typography variant="body2" color="text.secondary" component="div">
+                <ol style={{ margin: 0, paddingLeft: 20 }}>
+                  <li><strong>Google Calendar:</strong> Settings → Add calendar → From URL → Paste the feed URL</li>
+                  <li><strong>Outlook:</strong> Add calendar → Subscribe from web → Paste the feed URL</li>
+                  <li><strong>Apple Calendar:</strong> File → New Calendar Subscription → Paste the feed URL</li>
+                </ol>
+              </Typography>
+            </Paper>
+          </Grid>
+        </Grid>
       </TabPanel>
 
       {/* ================================================================

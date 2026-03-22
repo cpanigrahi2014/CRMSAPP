@@ -95,4 +95,19 @@ public interface OpportunityRepository extends JpaRepository<Opportunity, UUID> 
     // Pipeline view - all non-deleted opportunities ordered by stage
     @Query("SELECT o FROM Opportunity o WHERE o.tenantId = :tenantId AND o.deleted = false ORDER BY o.stage, o.amount DESC")
     List<Opportunity> findAllForPipeline(@Param("tenantId") String tenantId);
+
+    // Monthly revenue trend — won deals grouped by year-month of wonDate
+    @Query("SELECT FUNCTION('TO_CHAR', o.wonDate, 'YYYY-MM'), COUNT(o), COALESCE(SUM(o.amount), 0) " +
+           "FROM Opportunity o WHERE o.tenantId = :tenantId AND o.stage = 'CLOSED_WON' " +
+           "AND o.deleted = false AND o.wonDate IS NOT NULL " +
+           "GROUP BY FUNCTION('TO_CHAR', o.wonDate, 'YYYY-MM') " +
+           "ORDER BY FUNCTION('TO_CHAR', o.wonDate, 'YYYY-MM')")
+    List<Object[]> getMonthlyWonRevenue(@Param("tenantId") String tenantId);
+
+    // Monthly deal creation trend — grouped by year-month of createdAt
+    @Query("SELECT FUNCTION('TO_CHAR', o.createdAt, 'YYYY-MM'), COUNT(o), COALESCE(SUM(o.amount), 0) " +
+           "FROM Opportunity o WHERE o.tenantId = :tenantId AND o.deleted = false " +
+           "GROUP BY FUNCTION('TO_CHAR', o.createdAt, 'YYYY-MM') " +
+           "ORDER BY FUNCTION('TO_CHAR', o.createdAt, 'YYYY-MM')")
+    List<Object[]> getMonthlyCreatedDeals(@Param("tenantId") String tenantId);
 }

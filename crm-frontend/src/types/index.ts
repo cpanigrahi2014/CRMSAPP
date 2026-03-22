@@ -466,6 +466,26 @@ export interface ContactTag {
   createdAt: string;
 }
 
+export interface ContactNote {
+  id: string;
+  contactId: string;
+  content: string;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ContactAttachment {
+  id: string;
+  contactId: string;
+  fileName: string;
+  fileUrl: string;
+  fileSize: number | null;
+  fileType: string | null;
+  createdBy: string;
+  createdAt: string;
+}
+
 export interface DuplicateContactGroup {
   matchField: string;
   matchValue: string;
@@ -497,9 +517,37 @@ export type OpportunityStage =
   | 'PROPOSAL'
   | 'NEGOTIATION'
   | 'CLOSED_WON'
-  | 'CLOSED_LOST';
+  | 'CLOSED_LOST'
+  | string; // Allow custom stages
 
 export type ForecastCategory = 'PIPELINE' | 'BEST_CASE' | 'COMMIT' | 'CLOSED';
+
+export interface PipelineStage {
+  id: string;
+  name: string;
+  displayName: string;
+  displayOrder: number;
+  color: string;
+  defaultProbability: number;
+  forecastCategory: string;
+  closedWon: boolean;
+  closedLost: boolean;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PipelineStageRequest {
+  name: string;
+  displayName: string;
+  displayOrder: number;
+  color?: string;
+  defaultProbability?: number;
+  forecastCategory?: string;
+  closedWon?: boolean;
+  closedLost?: boolean;
+  active?: boolean;
+}
 
 export interface Opportunity {
   id: string;
@@ -701,6 +749,19 @@ export interface WinLossAnalysis {
   totalLostRevenue: number;
   averageDaysToClose: number;
   lostReasonBreakdown: Record<string, number>;
+}
+
+export interface RevenueTrend {
+  monthly: MonthlyRevenueData[];
+}
+
+export interface MonthlyRevenueData {
+  month: string;
+  wonRevenue: number;
+  pipeline: number;
+  dealsWon: number;
+  dealsClosed: number;
+  dealsCreated: number;
 }
 
 export interface OpportunityAlert {
@@ -1896,6 +1957,30 @@ export interface CreateProposalRequest {
 }
 
 export type ContractStatus = 'DRAFT' | 'SENT' | 'VIEWED' | 'SIGNED' | 'EXECUTED' | 'EXPIRED' | 'CANCELLED';
+
+// ── Calendar Sync ───────────────────────────────────────────
+export interface CalendarFeedToken {
+  id: string;
+  name: string;
+  token: string;
+  active: boolean;
+  createdAt: string;
+  lastAccessedAt?: string;
+}
+
+export interface CalendarSyncConfig {
+  id: string;
+  provider: 'GOOGLE' | 'OUTLOOK' | 'APPLE';
+  status: 'DISCONNECTED' | 'CONNECTED' | 'SYNCING' | 'ERROR';
+  calendarId?: string;
+  syncDirection: 'BIDIRECTIONAL' | 'TO_CALENDAR' | 'FROM_CALENDAR';
+  syncIntervalMinutes: number;
+  lastSyncAt?: string;
+  lastSyncStatus?: string;
+  eventsSynced: number;
+  enabled: boolean;
+  createdAt: string;
+}
 
 export interface Contract {
   id: string;

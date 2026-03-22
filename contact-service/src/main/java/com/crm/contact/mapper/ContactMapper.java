@@ -1,10 +1,7 @@
 package com.crm.contact.mapper;
 
 import com.crm.contact.dto.*;
-import com.crm.contact.entity.Contact;
-import com.crm.contact.entity.ContactCommunication;
-import com.crm.contact.entity.ContactActivity;
-import com.crm.contact.entity.ContactTag;
+import com.crm.contact.entity.*;
 import org.mapstruct.Mapper;
 import org.mapstruct.MappingTarget;
 
@@ -22,4 +19,8 @@ public interface ContactMapper {
     ContactActivityResponse toActivityResponse(ContactActivity entity);
 
     ContactTagResponse toTagResponse(ContactTag entity);
+
+    ContactNoteResponse toNoteResponse(ContactNote entity);
+
+    ContactAttachmentResponse toAttachmentResponse(ContactAttachment entity);
 }

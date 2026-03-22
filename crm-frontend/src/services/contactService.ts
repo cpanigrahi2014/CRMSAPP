@@ -6,6 +6,7 @@ import type {
   ApiResponse, PagedData, Contact, CreateContactRequest,
   UpdateConsentRequest, ContactCommunication, CreateCommunicationRequest,
   ContactActivity, ContactTag, DuplicateContactGroup, ContactAnalytics,
+  ContactNote, ContactAttachment,
 } from '../types';
 
 export const contactService = {
@@ -89,4 +90,24 @@ export const contactService = {
 
   exportCsv: () =>
     api.get<string>('/api/v1/contacts/export', { responseType: 'text' as any }).then((r) => r.data),
+
+  // ── Notes ──
+  addNote: (contactId: string, content: string) =>
+    api.post<ApiResponse<ContactNote>>(`/api/v1/contacts/${contactId}/notes`, { content }).then((r) => r.data),
+
+  getNotes: (contactId: string) =>
+    api.get<ApiResponse<ContactNote[]>>(`/api/v1/contacts/${contactId}/notes`).then((r) => r.data),
+
+  deleteNote: (noteId: string) =>
+    api.delete<ApiResponse<void>>(`/api/v1/contacts/notes/${noteId}`).then((r) => r.data),
+
+  // ── Attachments ──
+  addAttachment: (contactId: string, data: { fileName: string; fileUrl: string; fileSize?: number; fileType?: string }) =>
+    api.post<ApiResponse<ContactAttachment>>(`/api/v1/contacts/${contactId}/attachments`, data).then((r) => r.data),
+
+  getAttachments: (contactId: string) =>
+    api.get<ApiResponse<ContactAttachment[]>>(`/api/v1/contacts/${contactId}/attachments`).then((r) => r.data),
+
+  deleteAttachment: (attachmentId: string) =>
+    api.delete<ApiResponse<void>>(`/api/v1/contacts/attachments/${attachmentId}`).then((r) => r.data),
 };

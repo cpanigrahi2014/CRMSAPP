@@ -9,6 +9,7 @@ import type {
   CreateActivityRequest,
   UpdateActivityRequest,
   ActivityAnalytics,
+  CalendarFeedToken,
 } from '../types';
 
 const BASE = '/api/v1/activities';
@@ -67,4 +68,20 @@ export const activityService = {
   /* ---- Analytics ---- */
   getAnalytics: () =>
     api.get<ApiResponse<ActivityAnalytics>>(`${BASE}/analytics`).then((r) => r.data),
+
+  /* ---- Calendar Feed Tokens ---- */
+  getCalendarTokens: () =>
+    api.get<ApiResponse<CalendarFeedToken[]>>(`${BASE}/calendar/tokens`).then((r) => r.data),
+
+  createCalendarToken: (name: string) =>
+    api.post<ApiResponse<CalendarFeedToken>>(`${BASE}/calendar/tokens`, { name }).then((r) => r.data),
+
+  revokeCalendarToken: (id: string) =>
+    api.delete<ApiResponse<void>>(`${BASE}/calendar/tokens/${id}`).then((r) => r.data),
+
+  getCalendarFeedUrl: (token: string) =>
+    `${window.location.origin}/api/v1/activities/calendar/feed/${token}/activities.ics`,
+
+  exportCalendar: () =>
+    api.get(`${BASE}/calendar/export.ics`, { responseType: 'blob' }).then((r) => r.data),
 };

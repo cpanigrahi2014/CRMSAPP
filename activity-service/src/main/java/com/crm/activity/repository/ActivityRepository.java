@@ -106,4 +106,11 @@ public interface ActivityRepository extends JpaRepository<Activity, UUID> {
             "AND a.dueDate IS NOT NULL AND a.dueDate >= :from AND a.dueDate <= :to ORDER BY a.dueDate ASC")
     List<Activity> findUpcoming(@Param("tenantId") String tenantId,
                                 @Param("from") LocalDateTime from, @Param("to") LocalDateTime to);
+
+    /* ---- Calendar feed: all non-deleted activities with a date (for iCal export) ---- */
+    @Query("SELECT a FROM Activity a WHERE a.tenantId = :tenantId AND a.deleted = false " +
+            "AND (a.dueDate IS NOT NULL OR a.startTime IS NOT NULL) " +
+            "AND a.dueDate >= :from ORDER BY a.dueDate ASC")
+    List<Activity> findForCalendarFeed(@Param("tenantId") String tenantId,
+                                       @Param("from") LocalDateTime from);
 }

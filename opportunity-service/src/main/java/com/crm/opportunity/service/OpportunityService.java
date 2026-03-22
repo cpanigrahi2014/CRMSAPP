@@ -46,6 +46,7 @@ public class OpportunityService {
     private final OpportunityReminderRepository reminderRepository;
     private final StageHistoryRepository stageHistoryRepository;
     private final SalesQuotaRepository salesQuotaRepository;
+    private final PipelineStageRepository pipelineStageRepository;
     private final OpportunityMapper opportunityMapper;
     private final EventPublisher eventPublisher;
 
@@ -182,16 +183,26 @@ public class OpportunityService {
         Opportunity opp = findOpp(opportunityId, tenantId);
         Opportunity.OpportunityStage previousStage = opp.getStage();
 
-        if (previousStage == Opportunity.OpportunityStage.CLOSED_WON || previousStage == Opportunity.OpportunityStage.CLOSED_LOST) {
+        // Check if current stage is a closed stage (via dynamic config or enum fallback)
+        boolean previousIsClosed = isClosedStage(previousStage, tenantId);
+        if (previousIsClosed) {
             throw new BadRequestException("Cannot change stage of a closed opportunity");
         }
 
-        // Require lost reason when marking as CLOSED_LOST
-        if (newStage == Opportunity.OpportunityStage.CLOSED_LOST && (lostReason == null || lostReason.isBlank())) {
+        // Look up target stage config from pipeline_stages table
+        Optional<PipelineStage> targetStageConfig = pipelineStageRepository
+                .findByTenantIdAndNameAndDeletedFalse(tenantId, newStage.name());
+        boolean targetIsClosedLost = targetStageConfig.map(PipelineStage::isClosedLost)
+                .orElse(newStage == Opportunity.OpportunityStage.CLOSED_LOST);
+        boolean targetIsClosedWon = targetStageConfig.map(PipelineStage::isClosedWon)
+                .orElse(newStage == Opportunity.OpportunityStage.CLOSED_WON);
+
+        // Require lost reason when marking as closed-lost
+        if (targetIsClosedLost && (lostReason == null || lostReason.isBlank())) {
             throw new BadRequestException("Lost reason is required when closing an opportunity as lost");
         }
-        // Require competitor when marking as CLOSED_LOST
-        if (newStage == Opportunity.OpportunityStage.CLOSED_LOST && (competitor == null || competitor.isBlank())) {
+        // Require competitor when marking as closed-lost
+        if (targetIsClosedLost && (competitor == null || competitor.isBlank())) {
             throw new BadRequestException("Competitor is required when closing an opportunity as lost");
         }
 
@@ -199,15 +210,18 @@ public class OpportunityService {
         // Stage automation: auto-set probability based on stage
         opp.setProbability(getStageProbabilityWeight(newStage));
 
-        if (newStage == Opportunity.OpportunityStage.CLOSED_WON) {
+        // Set forecast category from dynamic config or fallback to hardcoded
+        if (targetIsClosedWon) {
             opp.setWonDate(LocalDateTime.now());
             opp.setProbability(100);
             opp.setForecastCategory(Opportunity.ForecastCategory.CLOSED);
-        } else if (newStage == Opportunity.OpportunityStage.CLOSED_LOST) {
+        } else if (targetIsClosedLost) {
             opp.setLostDate(LocalDateTime.now());
             opp.setLostReason(lostReason);
             opp.setProbability(0);
             opp.setForecastCategory(Opportunity.ForecastCategory.CLOSED);
+        } else if (targetStageConfig.isPresent()) {
+            opp.setForecastCategory(targetStageConfig.get().getForecastCategory());
         } else if (newStage == Opportunity.OpportunityStage.NEGOTIATION) {
             opp.setForecastCategory(Opportunity.ForecastCategory.COMMIT);
         } else if (newStage == Opportunity.OpportunityStage.PROPOSAL) {
@@ -219,7 +233,7 @@ public class OpportunityService {
                 "Stage changed from " + previousStage + " to " + newStage, userId);
 
         // Auto-record competitor when closing as lost
-        if (newStage == Opportunity.OpportunityStage.CLOSED_LOST && competitor != null && !competitor.isBlank()) {
+        if (targetIsClosedLost && competitor != null && !competitor.isBlank()) {
             try {
                 OpportunityCompetitor comp = new OpportunityCompetitor();
                 comp.setOpportunityId(updated.getId());
@@ -1081,15 +1095,18 @@ public class OpportunityService {
     }
 
     private int getStageProbabilityWeight(Opportunity.OpportunityStage stage) {
-        return switch (stage) {
-            case PROSPECTING -> 10;
-            case QUALIFICATION -> 25;
-            case NEEDS_ANALYSIS -> 40;
-            case PROPOSAL -> 60;
-            case NEGOTIATION -> 80;
-            case CLOSED_WON -> 100;
-            case CLOSED_LOST -> 0;
-        };
+        String tenantId = TenantContext.getTenantId();
+        return pipelineStageRepository.findByTenantIdAndNameAndDeletedFalse(tenantId, stage.name())
+                .map(PipelineStage::getDefaultProbability)
+                .orElseGet(() -> switch (stage) {
+                    case PROSPECTING -> 10;
+                    case QUALIFICATION -> 25;
+                    case NEEDS_ANALYSIS -> 40;
+                    case PROPOSAL -> 60;
+                    case NEGOTIATION -> 80;
+                    case CLOSED_WON -> 100;
+                    case CLOSED_LOST -> 0;
+                });
     }
 
     private OpportunityResponse toResponseWithExpectedRevenue(Opportunity opp) {
@@ -1100,5 +1117,45 @@ public class OpportunityService {
                     .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP));
         }
         return resp;
+    }
+
+    private boolean isClosedStage(Opportunity.OpportunityStage stage, String tenantId) {
+        return pipelineStageRepository.findByTenantIdAndNameAndDeletedFalse(tenantId, stage.name())
+                .map(s -> s.isClosedWon() || s.isClosedLost())
+                .orElse(stage == Opportunity.OpportunityStage.CLOSED_WON
+                        || stage == Opportunity.OpportunityStage.CLOSED_LOST);
+    }
+
+    // ─── Monthly Revenue Trend ─────────────────────────────────────
+    @Transactional(readOnly = true)
+    public RevenueTrend getRevenueTrend() {
+        String tenantId = TenantContext.getTenantId();
+        List<Object[]> wonRows = opportunityRepository.getMonthlyWonRevenue(tenantId);
+        List<Object[]> createdRows = opportunityRepository.getMonthlyCreatedDeals(tenantId);
+
+        // Merge into a month-keyed map
+        Map<String, RevenueTrend.MonthlyData> byMonth = new TreeMap<>();
+
+        for (Object[] row : wonRows) {
+            String month = (String) row[0];
+            long count = ((Number) row[1]).longValue();
+            BigDecimal revenue = row[2] instanceof BigDecimal bd ? bd : BigDecimal.valueOf(((Number) row[2]).doubleValue());
+            byMonth.computeIfAbsent(month, m -> RevenueTrend.MonthlyData.builder()
+                    .month(m).wonRevenue(BigDecimal.ZERO).pipeline(BigDecimal.ZERO).build())
+                    .setWonRevenue(revenue);
+            byMonth.get(month).setDealsWon(count);
+        }
+
+        for (Object[] row : createdRows) {
+            String month = (String) row[0];
+            long count = ((Number) row[1]).longValue();
+            BigDecimal pipeline = row[2] instanceof BigDecimal bd ? bd : BigDecimal.valueOf(((Number) row[2]).doubleValue());
+            byMonth.computeIfAbsent(month, m -> RevenueTrend.MonthlyData.builder()
+                    .month(m).wonRevenue(BigDecimal.ZERO).pipeline(BigDecimal.ZERO).build())
+                    .setPipeline(pipeline);
+            byMonth.get(month).setDealsCreated(count);
+        }
+
+        return RevenueTrend.builder().monthly(new ArrayList<>(byMonth.values())).build();
     }
 }
