@@ -18,7 +18,7 @@ import {
   Refresh as RefreshIcon,
   AutoAwesome as AiIcon,
 } from '@mui/icons-material';
-import { PageHeader, StatusChip } from '../components';
+import { PageHeader, StatusChip, VoiceInput } from '../components';
 import { leadService } from '../services';
 import { aiInsightsService, GeneratedNBA } from '../services/aiInsightsService';
 import { Lead, LeadNote, LeadActivity, LeadAttachment, LeadTag } from '../types';
@@ -353,12 +353,13 @@ const LeadDetailPage: React.FC = () => {
         {/* Tab 1: Notes */}
         <TabPanel value={tab} index={1}>
           <Box sx={{ px: 3 }}>
-            <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+            <Stack direction="row" spacing={1} sx={{ mb: 2 }} alignItems="flex-start">
               <TextField
                 fullWidth size="small" multiline maxRows={4}
                 placeholder="Add a note..."
                 value={newNote} onChange={e => setNewNote(e.target.value)}
               />
+              <VoiceInput onTranscript={(t) => setNewNote(prev => prev ? prev + ' ' + t : t)} tooltip="Dictate note" />
               <Button variant="contained" onClick={handleAddNote} disabled={!newNote.trim()}>Add</Button>
             </Stack>
             {notesLoading && <LinearProgress sx={{ mb: 1 }} />}

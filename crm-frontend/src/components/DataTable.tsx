@@ -73,7 +73,7 @@ const DataTable: React.FC<Props> = ({
                 </InputAdornment>
               ),
             }}
-            sx={{ width: 240 }}
+            sx={{ width: { xs: '100%', sm: 240 } }}
           />
         )}
         {toolbar}

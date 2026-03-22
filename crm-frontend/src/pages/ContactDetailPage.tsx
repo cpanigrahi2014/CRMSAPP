@@ -20,7 +20,7 @@ import {
   Sms as SmsIcon, WhatsApp as WhatsAppIcon, Call as CallIcon,
   CallEnd as CallEndIcon,
 } from '@mui/icons-material';
-import { PageHeader, ConfirmDialog } from '../components';
+import { PageHeader, ConfirmDialog, VoiceInput } from '../components';
 import { contactService } from '../services';
 import { sendSms, sendWhatsApp, initiateCall, endCall } from '../services/communicationService';
 import type {
@@ -616,7 +616,7 @@ const ContactDetailPage: React.FC = () => {
       <TabPanel value={tab} index={2}>
         <Paper sx={{ p: 3 }}>
           <Typography variant="h6" sx={{ mb: 2 }}>Notes</Typography>
-          <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+          <Stack direction="row" spacing={1} sx={{ mb: 2 }} alignItems="flex-start">
             <TextField
               fullWidth
               size="small"
@@ -627,6 +627,7 @@ const ContactDetailPage: React.FC = () => {
               onChange={(e) => setNewNote(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter' && e.ctrlKey) addNote(); }}
             />
+            <VoiceInput onTranscript={(t) => setNewNote(prev => prev ? prev + ' ' + t : t)} tooltip="Dictate note" />
             <Button variant="contained" startIcon={<AddIcon />} onClick={addNote} sx={{ alignSelf: 'flex-start' }}>Add</Button>
           </Stack>
           {notes.length === 0 ? (
@@ -921,9 +922,12 @@ const ContactDetailPage: React.FC = () => {
         <DialogContent>
           <TextField fullWidth multiline rows={4} label="Message" placeholder="Type your SMS message…"
             value={smsBody} onChange={(e) => setSmsBody(e.target.value)} sx={{ mt: 1 }} />
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
-            {smsBody.length}/160 characters {smsBody.length > 160 ? `(${Math.ceil(smsBody.length / 160)} segments)` : ''}
-          </Typography>
+          <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mt: 1 }}>
+            <Typography variant="caption" color="text.secondary">
+              {smsBody.length}/160 characters {smsBody.length > 160 ? `(${Math.ceil(smsBody.length / 160)} segments)` : ''}
+            </Typography>
+            <VoiceInput onTranscript={(t) => setSmsBody(prev => prev ? prev + ' ' + t : t)} tooltip="Dictate SMS" />
+          </Stack>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setSmsDlg(false)}>Cancel</Button>

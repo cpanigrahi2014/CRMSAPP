@@ -66,7 +66,7 @@ import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip as RTooltip, ResponsiveContainer, Legend,
 } from 'recharts';
-import { DataTable, PageHeader, ConfirmDialog, MetricCard } from '../components';
+import { DataTable, PageHeader, ConfirmDialog, MetricCard, VoiceInput } from '../components';
 import { activityService } from '../services';
 import { aiInsightsService, GeneratedMeetingSummary } from '../services/aiInsightsService';
 import type {
@@ -982,7 +982,10 @@ const ActivitiesPage: React.FC = () => {
               <TextField fullWidth size="small" label="Subject" value={formData.subject} onChange={ff('subject')} required />
             </Grid>
             <Grid item xs={12}>
-              <TextField fullWidth size="small" label="Description" value={formData.description} onChange={ff('description')} multiline rows={2} />
+              <Stack direction="row" spacing={1} alignItems="flex-start">
+                <TextField fullWidth size="small" label="Description" value={formData.description} onChange={ff('description')} multiline rows={2} />
+                <VoiceInput onTranscript={(t) => setFormData(prev => ({ ...prev, description: prev.description ? prev.description + ' ' + t : t }))} tooltip="Dictate description" />
+              </Stack>
             </Grid>
             <Grid item xs={12} sm={4}>
               <FormControl fullWidth size="small">
