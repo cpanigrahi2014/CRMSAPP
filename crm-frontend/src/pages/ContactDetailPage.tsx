@@ -17,9 +17,12 @@ import {
   Add as AddIcon, Delete as DeleteIcon, Send as SendIcon, CallMade, CallReceived,
   Timeline as TimelineIcon, Label as LabelIcon, Analytics as AnalyticsIcon,
   NoteAdd as NoteAddIcon, AttachFile as AttachFileIcon,
+  Sms as SmsIcon, WhatsApp as WhatsAppIcon, Call as CallIcon,
+  CallEnd as CallEndIcon,
 } from '@mui/icons-material';
 import { PageHeader, ConfirmDialog } from '../components';
 import { contactService } from '../services';
+import { sendSms, sendWhatsApp, initiateCall, endCall } from '../services/communicationService';
 import type {
   Contact, ContactCommunication, ContactActivity, ContactTag, ContactAnalytics,
   ContactNote, ContactAttachment,
@@ -73,6 +76,20 @@ const ContactDetailPage: React.FC = () => {
   const [attachments, setAttachments] = useState<ContactAttachment[]>([]);
   const [attachDialog, setAttachDialog] = useState(false);
   const [attachForm, setAttachForm] = useState({ fileName: '', fileUrl: '', fileType: '' });
+
+  // Omnichannel: SMS
+  const [smsDlg, setSmsDlg] = useState(false);
+  const [smsBody, setSmsBody] = useState('');
+  const [smsSending, setSmsSending] = useState(false);
+
+  // Omnichannel: WhatsApp
+  const [waDlg, setWaDlg] = useState(false);
+  const [waBody, setWaBody] = useState('');
+  const [waSending, setWaSending] = useState(false);
+
+  // Omnichannel: Click-to-Call
+  const [activeCallId, setActiveCallId] = useState<string | null>(null);
+  const [callStatus, setCallStatus] = useState<string | null>(null);
 
   /* ── Loaders ── */
   const fetchContact = useCallback(async () => {
@@ -257,6 +274,68 @@ const ContactDetailPage: React.FC = () => {
     } catch { enqueueSnackbar('Failed to delete attachment', { variant: 'error' }); }
   };
 
+  /* ── Omnichannel: Send SMS ── */
+  const handleSendSms = async () => {
+    const phone = contact?.mobilePhone || contact?.phone;
+    if (!phone || !smsBody.trim()) return;
+    setSmsSending(true);
+    try {
+      await sendSms(phone, smsBody.trim());
+      enqueueSnackbar(`SMS sent to ${phone}`, { variant: 'success' });
+      setSmsDlg(false);
+      setSmsBody('');
+      if (id) {
+        await contactService.addCommunication(id, { commType: 'SMS', subject: 'SMS Message', body: smsBody.trim(), direction: 'OUTBOUND', status: 'COMPLETED' });
+        if (tab === 1) fetchComms();
+      }
+    } catch { enqueueSnackbar('Failed to send SMS', { variant: 'error' }); }
+    finally { setSmsSending(false); }
+  };
+
+  /* ── Omnichannel: Send WhatsApp ── */
+  const handleSendWhatsApp = async () => {
+    const phone = contact?.mobilePhone || contact?.phone;
+    if (!phone || !waBody.trim()) return;
+    setWaSending(true);
+    try {
+      await sendWhatsApp(phone, waBody.trim());
+      enqueueSnackbar(`WhatsApp sent to ${phone}`, { variant: 'success' });
+      setWaDlg(false);
+      setWaBody('');
+      if (id) {
+        await contactService.addCommunication(id, { commType: 'NOTE', subject: 'WhatsApp Message', body: waBody.trim(), direction: 'OUTBOUND', status: 'COMPLETED' });
+        if (tab === 1) fetchComms();
+      }
+    } catch { enqueueSnackbar('Failed to send WhatsApp', { variant: 'error' }); }
+    finally { setWaSending(false); }
+  };
+
+  /* ── Omnichannel: Click-to-Call ── */
+  const handleCall = async () => {
+    const phone = contact?.phone || contact?.mobilePhone;
+    if (!phone) return;
+    setCallStatus('INITIATING');
+    try {
+      const call = await initiateCall(phone);
+      setActiveCallId(call.id);
+      setCallStatus(call.status || 'IN_PROGRESS');
+      enqueueSnackbar(`Calling ${phone}…`, { variant: 'info' });
+    } catch { enqueueSnackbar('Failed to initiate call', { variant: 'error' }); setCallStatus(null); }
+  };
+
+  const handleEndCall = async () => {
+    if (!activeCallId) return;
+    try {
+      await endCall(activeCallId);
+      enqueueSnackbar('Call ended', { variant: 'success' });
+      if (id) {
+        await contactService.addCommunication(id, { commType: 'CALL', subject: 'Phone Call', body: `Call to ${contact?.phone || contact?.mobilePhone}`, direction: 'OUTBOUND', status: 'COMPLETED' });
+        if (tab === 1) fetchComms();
+      }
+    } catch { enqueueSnackbar('Failed to end call', { variant: 'error' }); }
+    finally { setActiveCallId(null); setCallStatus(null); }
+  };
+
   if (loading) return <LinearProgress />;
   if (!contact) return <Typography>Contact not found</Typography>;
 
@@ -301,6 +380,51 @@ const ContactDetailPage: React.FC = () => {
               </>
             )}
           </Stack>
+        </Stack>
+
+        {/* ── Quick Communication Actions ── */}
+        <Divider sx={{ my: 2 }} />
+        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+          <Tooltip title={contact.doNotCall ? 'Do Not Call flag is set' : `Call ${contact.phone || contact.mobilePhone || 'No phone'}`}>
+            <span>
+              {callStatus ? (
+                <Button variant="contained" color="error" startIcon={<CallEndIcon />} onClick={handleEndCall}>
+                  End Call ({callStatus})
+                </Button>
+              ) : (
+                <Button variant="outlined" startIcon={<CallIcon />} onClick={handleCall}
+                  disabled={contact.doNotCall || (!contact.phone && !contact.mobilePhone)}>
+                  Call
+                </Button>
+              )}
+            </span>
+          </Tooltip>
+          <Tooltip title={contact.smsOptIn === false ? 'SMS opt-in not granted' : `SMS ${contact.mobilePhone || contact.phone || 'No phone'}`}>
+            <span>
+              <Button variant="outlined" startIcon={<SmsIcon />} onClick={() => setSmsDlg(true)}
+                disabled={!contact.mobilePhone && !contact.phone}>
+                SMS
+              </Button>
+            </span>
+          </Tooltip>
+          <Tooltip title={`WhatsApp ${contact.mobilePhone || contact.phone || 'No phone'}`}>
+            <span>
+              <Button variant="outlined" startIcon={<WhatsAppIcon />} onClick={() => setWaDlg(true)}
+                disabled={!contact.mobilePhone && !contact.phone}
+                sx={{ color: '#25D366', borderColor: '#25D366', '&:hover': { borderColor: '#128C7E', bgcolor: 'rgba(37,211,102,0.04)' } }}>
+                WhatsApp
+              </Button>
+            </span>
+          </Tooltip>
+          <Tooltip title={`Email ${contact.email || 'No email'}`}>
+            <span>
+              <Button variant="outlined" startIcon={<EmailIcon />}
+                href={contact.email ? `mailto:${contact.email}` : undefined}
+                disabled={!contact.email}>
+                Email
+              </Button>
+            </span>
+          </Tooltip>
         </Stack>
       </Paper>
 
@@ -375,7 +499,30 @@ const ContactDetailPage: React.FC = () => {
                 ].map(([label, value]) => (
                   <Grid item xs={12} sm={6} key={label as string}>
                     <Typography variant="caption" color="text.secondary">{label}</Typography>
-                    <Typography variant="body1">{(value as string) || '—'}</Typography>
+                    {((label === 'Phone' || label === 'Mobile') && value) ? (
+                      <Stack direction="row" spacing={0.5} alignItems="center">
+                        <Typography
+                          variant="body1"
+                          component="a"
+                          href={`tel:${value}`}
+                          sx={{ color: 'primary.main', textDecoration: 'none', cursor: 'pointer', '&:hover': { textDecoration: 'underline' } }}
+                        >
+                          {value as string}
+                        </Typography>
+                        <Tooltip title="Click to call">
+                          <IconButton size="small" color="primary" onClick={handleCall}>
+                            <CallIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Send SMS">
+                          <IconButton size="small" color="info" onClick={() => setSmsDlg(true)}>
+                            <SmsIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Stack>
+                    ) : (
+                      <Typography variant="body1">{(value as string) || '—'}</Typography>
+                    )}
                   </Grid>
                 ))}
                 {contact.description && (
@@ -762,6 +909,52 @@ const ContactDetailPage: React.FC = () => {
           )}
         </Paper>
       </TabPanel>
+
+      {/* ── SMS Dialog ── */}
+      <Dialog open={smsDlg} onClose={() => setSmsDlg(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <SmsIcon color="primary" />
+            <span>Send SMS to {contact.mobilePhone || contact.phone}</span>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          <TextField fullWidth multiline rows={4} label="Message" placeholder="Type your SMS message…"
+            value={smsBody} onChange={(e) => setSmsBody(e.target.value)} sx={{ mt: 1 }} />
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 1, display: 'block' }}>
+            {smsBody.length}/160 characters {smsBody.length > 160 ? `(${Math.ceil(smsBody.length / 160)} segments)` : ''}
+          </Typography>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setSmsDlg(false)}>Cancel</Button>
+          <Button variant="contained" startIcon={<SendIcon />} onClick={handleSendSms}
+            disabled={smsSending || !smsBody.trim()}>
+            {smsSending ? 'Sending…' : 'Send SMS'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* ── WhatsApp Dialog ── */}
+      <Dialog open={waDlg} onClose={() => setWaDlg(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Stack direction="row" spacing={1} alignItems="center">
+            <WhatsAppIcon sx={{ color: '#25D366' }} />
+            <span>Send WhatsApp to {contact.mobilePhone || contact.phone}</span>
+          </Stack>
+        </DialogTitle>
+        <DialogContent>
+          <TextField fullWidth multiline rows={4} label="Message" placeholder="Type your WhatsApp message…"
+            value={waBody} onChange={(e) => setWaBody(e.target.value)} sx={{ mt: 1 }} />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setWaDlg(false)}>Cancel</Button>
+          <Button variant="contained" startIcon={<SendIcon />} onClick={handleSendWhatsApp}
+            disabled={waSending || !waBody.trim()}
+            sx={{ bgcolor: '#25D366', '&:hover': { bgcolor: '#128C7E' } }}>
+            {waSending ? 'Sending…' : 'Send WhatsApp'}
+          </Button>
+        </DialogActions>
+      </Dialog>
     </>
   );
 };
