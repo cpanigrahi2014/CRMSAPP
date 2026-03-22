@@ -60,6 +60,7 @@ import {
   Sync as SyncIcon,
   ContentCopy as CopyIcon,
   LinkOff as LinkOffIcon,
+  AutoAwesome as AiIcon,
 } from '@mui/icons-material';
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -67,6 +68,7 @@ import {
 } from 'recharts';
 import { DataTable, PageHeader, ConfirmDialog, MetricCard } from '../components';
 import { activityService } from '../services';
+import { aiInsightsService, GeneratedMeetingSummary } from '../services/aiInsightsService';
 import type {
   Activity,
   ActivityType,
@@ -166,6 +168,10 @@ const ActivitiesPage: React.FC = () => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
+
+  /* AI Summarize state */
+  const [aiSummary, setAiSummary] = useState<GeneratedMeetingSummary | null>(null);
+  const [aiSummaryLoading, setAiSummaryLoading] = useState(false);
 
   /* Timeline state */
   const [timeline, setTimeline] = useState<Activity[]>([]);
@@ -371,6 +377,25 @@ const ActivitiesPage: React.FC = () => {
     } catch {
       enqueueSnackbar('Failed to complete activity', { variant: 'error' });
     }
+  };
+
+  const handleAiSummarize = async () => {
+    setAiSummaryLoading(true);
+    setAiSummary(null);
+    try {
+      const result = await aiInsightsService.generateMeetingSummary(
+        formData.subject || 'Meeting',
+        formData.description || '',
+        formData.startTime || undefined,
+        [],
+        formData.relatedEntityType || undefined,
+        formData.relatedEntityId || undefined,
+      );
+      setAiSummary(result);
+      enqueueSnackbar('AI summary generated', { variant: 'success' });
+    } catch {
+      enqueueSnackbar('Failed to generate summary', { variant: 'error' });
+    } finally { setAiSummaryLoading(false); }
   };
 
   /* ── Calendar token handlers ──────────────────────────────── */
@@ -1063,9 +1088,51 @@ const ActivitiesPage: React.FC = () => {
               </>
             )}
           </Grid>
+
+          {/* AI Summary Result */}
+          {aiSummary && (
+            <Paper variant="outlined" sx={{ mt: 2, p: 2, bgcolor: 'action.hover' }}>
+              <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                <AiIcon color="primary" fontSize="small" />
+                <Typography variant="subtitle2">AI Meeting Summary</Typography>
+              </Stack>
+              <Typography variant="body2" sx={{ mb: 1 }}>{aiSummary.summary}</Typography>
+              {aiSummary.actionItems.length > 0 && (
+                <>
+                  <Typography variant="caption" fontWeight={600}>Action Items:</Typography>
+                  <List dense disablePadding>
+                    {aiSummary.actionItems.map((item, i) => (
+                      <ListItem key={i} disableGutters sx={{ py: 0 }}>
+                        <ListItemIcon sx={{ minWidth: 24 }}><Typography variant="caption">{i + 1}.</Typography></ListItemIcon>
+                        <ListItemText primary={<Typography variant="body2">{item}</Typography>} />
+                      </ListItem>
+                    ))}
+                  </List>
+                </>
+              )}
+              {aiSummary.keyDecisions.length > 0 && (
+                <>
+                  <Typography variant="caption" fontWeight={600} sx={{ mt: 1 }}>Key Decisions:</Typography>
+                  <List dense disablePadding>
+                    {aiSummary.keyDecisions.map((dec, i) => (
+                      <ListItem key={i} disableGutters sx={{ py: 0 }}>
+                        <ListItemIcon sx={{ minWidth: 24 }}><Typography variant="caption">•</Typography></ListItemIcon>
+                        <ListItemText primary={<Typography variant="body2">{dec}</Typography>} />
+                      </ListItem>
+                    ))}
+                  </List>
+                </>
+              )}
+            </Paper>
+          )}
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setFormOpen(false)}>Cancel</Button>
+          <Button onClick={() => { setFormOpen(false); setAiSummary(null); }}>Cancel</Button>
+          {(formData.type === 'MEETING' || formData.type === 'CALL') && (
+            <Button startIcon={<AiIcon />} onClick={handleAiSummarize} disabled={aiSummaryLoading || !formData.subject}>
+              {aiSummaryLoading ? 'Summarizing…' : 'AI Summarize'}
+            </Button>
+          )}
           <Button variant="contained" onClick={handleSave} disabled={saving || !formData.subject}>
             {saving ? 'Saving…' : editingId ? 'Update' : 'Create'}
           </Button>

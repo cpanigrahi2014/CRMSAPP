@@ -36,7 +36,7 @@ import {
   Summarize as SummarizeIcon,
   PersonAdd as PersonAddIcon,
 } from '@mui/icons-material';
-import { aiInsightsService } from '../services/aiInsightsService';
+import { aiInsightsService, GeneratedMeetingSummary, GeneratedEmailDraft } from '../services/aiInsightsService';
 import type {
   PredictiveLeadScore, WinProbability, SalesForecast, ChurnPrediction,
   NextBestAction, AiReportInsight, DataEntrySuggestion, AiSalesInsight,
@@ -109,6 +109,14 @@ const AiInsightsPage: React.FC = () => {
   /* filters */
   const [actionFilter, setActionFilter] = useState<string>('ALL');
   const [insightFilter, setInsightFilter] = useState<string>('ALL');
+
+  /* Interactive AI forms */
+  const [meetingInput, setMeetingInput] = useState({ title: '', notes: '' });
+  const [meetingResult, setMeetingResult] = useState<GeneratedMeetingSummary | null>(null);
+  const [meetingGenLoading, setMeetingGenLoading] = useState(false);
+  const [emailInput, setEmailInput] = useState({ to: '', subjectContext: '', tone: 'professional' });
+  const [emailResult, setEmailResult] = useState<GeneratedEmailDraft | null>(null);
+  const [emailGenLoading, setEmailGenLoading] = useState(false);
 
   useEffect(() => {
     // Immediate sync load from localStorage
@@ -669,8 +677,67 @@ const AiInsightsPage: React.FC = () => {
       {/* ── 9. AI Email Reply Generation ──────────────────────── */}
       <TabPanel value={tab} index={8}>
         <Typography variant="h6" mb={2}>AI Email Reply Generation</Typography>
-        {emailReplies.length === 0 ? (
-          <Alert severity="info">No email replies generated yet. Use the AI to generate replies from the email interface.</Alert>
+
+        {/* Interactive generator */}
+        <Card variant="outlined" sx={{ mb: 3 }}>
+          <CardContent>
+            <Stack direction="row" spacing={1} alignItems="center" mb={2}>
+              <AiIcon color="primary" />
+              <Typography variant="subtitle1" fontWeight={600}>Generate AI Email Draft</Typography>
+            </Stack>
+            <Grid container spacing={2}>
+              <Grid item xs={12} sm={4}>
+                <TextField fullWidth size="small" label="Recipient" value={emailInput.to}
+                  onChange={e => setEmailInput(p => ({ ...p, to: e.target.value }))} />
+              </Grid>
+              <Grid item xs={12} sm={5}>
+                <TextField fullWidth size="small" label="Subject / Context" value={emailInput.subjectContext}
+                  onChange={e => setEmailInput(p => ({ ...p, subjectContext: e.target.value }))} />
+              </Grid>
+              <Grid item xs={12} sm={3}>
+                <FormControl fullWidth size="small">
+                  <InputLabel>Tone</InputLabel>
+                  <Select value={emailInput.tone} label="Tone" onChange={(e: SelectChangeEvent) => setEmailInput(p => ({ ...p, tone: e.target.value }))}>
+                    <MenuItem value="professional">Professional</MenuItem>
+                    <MenuItem value="friendly">Friendly</MenuItem>
+                    <MenuItem value="formal">Formal</MenuItem>
+                    <MenuItem value="empathetic">Empathetic</MenuItem>
+                  </Select>
+                </FormControl>
+              </Grid>
+            </Grid>
+            <Button variant="contained" startIcon={<AiIcon />} sx={{ mt: 2 }}
+              disabled={emailGenLoading || !emailInput.to || !emailInput.subjectContext}
+              onClick={async () => {
+                setEmailGenLoading(true); setEmailResult(null);
+                try {
+                  const r = await aiInsightsService.generateEmailDraft(emailInput.to, emailInput.subjectContext, emailInput.tone);
+                  setEmailResult(r);
+                  setSnack({ open: true, msg: 'Email draft generated!', severity: 'success' });
+                } catch { setSnack({ open: true, msg: 'Failed to generate draft', severity: 'error' }); }
+                finally { setEmailGenLoading(false); }
+              }}>
+              {emailGenLoading ? 'Generating…' : 'Generate Draft'}
+            </Button>
+            {emailResult && (
+              <Paper variant="outlined" sx={{ p: 2, mt: 2, bgcolor: 'grey.50' }}>
+                <Typography variant="subtitle2" gutterBottom>Subject: {emailResult.subject}</Typography>
+                <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>{emailResult.body}</Typography>
+                {emailResult.suggestions.length > 0 && (
+                  <Box mt={1}>
+                    <Typography variant="caption" fontWeight={600}>Suggestions:</Typography>
+                    {emailResult.suggestions.map((s, i) => (
+                      <Typography key={i} variant="caption" display="block" color="text.secondary">• {s}</Typography>
+                    ))}
+                  </Box>
+                )}
+              </Paper>
+            )}
+          </CardContent>
+        </Card>
+
+        {emailReplies.length === 0 && !emailResult ? (
+          <Alert severity="info">Use the form above to generate an AI-powered email draft, or use the AI Draft button in the email compose dialog.</Alert>
         ) : (
           <Stack spacing={2}>
             {emailReplies.map(er => (
@@ -709,8 +776,62 @@ const AiInsightsPage: React.FC = () => {
       {/* ── 10. AI Meeting Summary & CRM Update ──────────────── */}
       <TabPanel value={tab} index={9}>
         <Typography variant="h6" mb={2}>AI Meeting Summary &amp; CRM Update</Typography>
-        {meetingSummaries.length === 0 ? (
-          <Alert severity="info">No meeting summaries generated yet. Submit meeting notes or transcripts to get AI-powered summaries.</Alert>
+
+        {/* Interactive generator */}
+        <Card variant="outlined" sx={{ mb: 3 }}>
+          <CardContent>
+            <Stack direction="row" spacing={1} alignItems="center" mb={2}>
+              <SummarizeIcon color="primary" />
+              <Typography variant="subtitle1" fontWeight={600}>Generate Meeting Summary from Notes</Typography>
+            </Stack>
+            <Stack spacing={2}>
+              <TextField fullWidth size="small" label="Meeting Title" value={meetingInput.title}
+                onChange={e => setMeetingInput(p => ({ ...p, title: e.target.value }))} />
+              <TextField fullWidth multiline rows={4} label="Meeting Notes / Transcript"
+                placeholder="Paste meeting notes, transcript, or key discussion points…"
+                value={meetingInput.notes}
+                onChange={e => setMeetingInput(p => ({ ...p, notes: e.target.value }))} />
+            </Stack>
+            <Button variant="contained" startIcon={<SummarizeIcon />} sx={{ mt: 2 }}
+              disabled={meetingGenLoading || !meetingInput.title || !meetingInput.notes}
+              onClick={async () => {
+                setMeetingGenLoading(true); setMeetingResult(null);
+                try {
+                  const r = await aiInsightsService.generateMeetingSummary(meetingInput.title, meetingInput.notes);
+                  setMeetingResult(r);
+                  setSnack({ open: true, msg: 'Meeting summary generated!', severity: 'success' });
+                } catch { setSnack({ open: true, msg: 'Failed to generate summary', severity: 'error' }); }
+                finally { setMeetingGenLoading(false); }
+              }}>
+              {meetingGenLoading ? 'Summarizing…' : 'Generate Summary'}
+            </Button>
+            {meetingResult && (
+              <Paper variant="outlined" sx={{ p: 2, mt: 2, bgcolor: 'grey.50' }}>
+                <Typography variant="subtitle2" gutterBottom>Summary</Typography>
+                <Typography variant="body2" sx={{ mb: 1 }}>{meetingResult.summary}</Typography>
+                {meetingResult.actionItems.length > 0 && (
+                  <Box mb={1}>
+                    <Typography variant="caption" fontWeight={600}>Action Items:</Typography>
+                    {meetingResult.actionItems.map((item, i) => (
+                      <Typography key={i} variant="body2" display="block">  {i + 1}. {item}</Typography>
+                    ))}
+                  </Box>
+                )}
+                {meetingResult.keyDecisions.length > 0 && (
+                  <Box>
+                    <Typography variant="caption" fontWeight={600}>Key Decisions:</Typography>
+                    {meetingResult.keyDecisions.map((d, i) => (
+                      <Typography key={i} variant="body2" display="block">  • {d}</Typography>
+                    ))}
+                  </Box>
+                )}
+              </Paper>
+            )}
+          </CardContent>
+        </Card>
+
+        {meetingSummaries.length === 0 && !meetingResult ? (
+          <Alert severity="info">Use the form above to generate a meeting summary, or use the AI Summarize button in the Activity dialog.</Alert>
         ) : (
           <Stack spacing={2}>
             {meetingSummaries.map(ms => (

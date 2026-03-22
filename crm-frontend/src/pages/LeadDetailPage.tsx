@@ -16,9 +16,11 @@ import {
   Download as DownloadIcon,
   Add as AddIcon,
   Refresh as RefreshIcon,
+  AutoAwesome as AiIcon,
 } from '@mui/icons-material';
 import { PageHeader, StatusChip } from '../components';
 import { leadService } from '../services';
+import { aiInsightsService, GeneratedNBA } from '../services/aiInsightsService';
 import { Lead, LeadNote, LeadActivity, LeadAttachment, LeadTag } from '../types';
 import { useSnackbar } from 'notistack';
 
@@ -56,6 +58,10 @@ const LeadDetailPage: React.FC = () => {
   // Tags
   const [allTags, setAllTags] = useState<LeadTag[]>([]);
   const [leadTags, setLeadTags] = useState<LeadTag[]>([]);
+
+  // AI Next Best Actions
+  const [nbaActions, setNbaActions] = useState<GeneratedNBA[]>([]);
+  const [nbaLoading, setNbaLoading] = useState(false);
 
   /* ── Fetch lead ───────────────────────────────────────── */
   const fetchLead = useCallback(async () => {
@@ -105,6 +111,19 @@ const LeadDetailPage: React.FC = () => {
       setAllTags(Array.isArray(res.data) ? res.data : []);
     } catch { /* ignore */ }
   }, []);
+
+  const fetchNba = useCallback(async () => {
+    if (!id) return;
+    setNbaLoading(true);
+    try {
+      const res = await aiInsightsService.generateNextBestActions('LEAD', id, {
+        name: lead?.firstName ? `${lead.firstName} ${lead.lastName}` : '',
+        score: lead?.leadScore ?? 0,
+        status: lead?.status ?? '',
+      });
+      setNbaActions(res.actions ?? []);
+    } catch { /* ignore */ } finally { setNbaLoading(false); }
+  }, [id, lead]);
 
   useEffect(() => { fetchLead(); }, [fetchLead]);
   useEffect(() => {
@@ -296,12 +315,38 @@ const LeadDetailPage: React.FC = () => {
           <Tab label="Tags" />
         </Tabs>
 
-        {/* Tab 0: Overview – already shown above */}
+        {/* Tab 0: Overview – AI Next Best Actions */}
         <TabPanel value={tab} index={0}>
           <Box sx={{ px: 3, pb: 2 }}>
-            <Typography variant="body2" color="text.secondary">
-              Full lead overview shown above. Use the tabs for detailed notes, timeline, attachments, and tags.
-            </Typography>
+            <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 2 }}>
+              <Stack direction="row" spacing={1} alignItems="center">
+                <AiIcon color="primary" />
+                <Typography variant="h6">AI Recommended Actions</Typography>
+              </Stack>
+              <Button size="small" startIcon={<AiIcon />} onClick={fetchNba} disabled={nbaLoading}>
+                {nbaLoading ? 'Generating…' : 'Get Recommendations'}
+              </Button>
+            </Stack>
+            {nbaLoading && <LinearProgress sx={{ mb: 1 }} />}
+            {nbaActions.length > 0 ? nbaActions.map((a, i) => (
+              <Card key={i} variant="outlined" sx={{ mb: 1 }}>
+                <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
+                  <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
+                    <Chip
+                      label={a.priority >= 80 ? 'High' : a.priority >= 50 ? 'Medium' : 'Low'}
+                      size="small"
+                      color={a.priority >= 80 ? 'error' : a.priority >= 50 ? 'warning' : 'success'}
+                    />
+                    <Typography variant="body2" fontWeight={600}>{a.action}</Typography>
+                  </Stack>
+                  <Typography variant="body2" color="text.secondary">{a.reason}</Typography>
+                </CardContent>
+              </Card>
+            )) : !nbaLoading && (
+              <Typography variant="body2" color="text.secondary">
+                Click "Get Recommendations" to have AI suggest the next best actions for this lead.
+              </Typography>
+            )}
           </Box>
         </TabPanel>
 

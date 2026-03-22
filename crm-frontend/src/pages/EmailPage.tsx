@@ -23,7 +23,7 @@ import {
   Star as DefaultIcon, OpenInNew as OpenIcon,
   TrendingUp as TrendingUpIcon, MarkEmailRead as ReadIcon,
   Mouse as ClickIcon, ErrorOutline as BounceIcon,
-  CheckCircle as DeliveredIcon,
+  CheckCircle as DeliveredIcon, AutoAwesome as AiIcon,
 } from '@mui/icons-material';
 import {
   LineChart, Line, XAxis, YAxis, CartesianGrid,
@@ -32,6 +32,7 @@ import {
 } from 'recharts';
 import { DataTable, PageHeader, ConfirmDialog, MetricCard } from '../components';
 import { emailService } from '../services';
+import { aiInsightsService } from '../services/aiInsightsService';
 import type {
   EmailAccount, CreateEmailAccountRequest,
   EmailTemplate, CreateEmailTemplateRequest, UpdateEmailTemplateRequest,
@@ -91,6 +92,7 @@ const EmailPage: React.FC = () => {
   const [totalMessages, setTotalMessages] = useState(0);
   const [sendDlg, setSendDlg] = useState(false);
   const [sendForm, setSendForm] = useState(emptySendForm());
+  const [aiDraftLoading, setAiDraftLoading] = useState(false);
   const [viewDlg, setViewDlg] = useState(false);
   const [selectedMsg, setSelectedMsg] = useState<EmailMessage | null>(null);
   const [trackingEvents, setTrackingEvents] = useState<EmailTrackingEvent[]>([]);
@@ -246,6 +248,26 @@ const EmailPage: React.FC = () => {
       enqueueSnackbar('Email sent!', { variant: 'success' });
       setSendDlg(false); loadMessages(); loadAnalytics();
     } catch { enqueueSnackbar('Failed to send email', { variant: 'error' }); }
+  };
+
+  const handleAiDraft = async () => {
+    setAiDraftLoading(true);
+    try {
+      const result = await aiInsightsService.generateEmailDraft(
+        sendForm.to || 'recipient',
+        sendForm.subject || 'Follow-up',
+        'professional',
+        sendForm.bodyHtml || undefined,
+      );
+      setSendForm(f => ({
+        ...f,
+        subject: result.subject || f.subject,
+        bodyHtml: result.body || f.bodyHtml,
+      }));
+      enqueueSnackbar('AI draft generated', { variant: 'success' });
+    } catch {
+      enqueueSnackbar('Failed to generate AI draft', { variant: 'error' });
+    } finally { setAiDraftLoading(false); }
   };
 
   /* ── View Message + Tracking ────────────────────────────── */
@@ -584,6 +606,9 @@ const EmailPage: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setSendDlg(false)}>Cancel</Button>
+          <Button startIcon={<AiIcon />} onClick={handleAiDraft} disabled={aiDraftLoading}>
+            {aiDraftLoading ? 'Generating…' : 'AI Draft'}
+          </Button>
           <Button variant="contained" startIcon={<SendIcon />} onClick={handleSend}
             disabled={!sendForm.to || !sendForm.subject}>
             {sendForm.scheduledAt ? 'Schedule' : 'Send'}

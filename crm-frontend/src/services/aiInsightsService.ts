@@ -140,6 +140,24 @@ const DEFAULT_AUTO_LEADS: AutoLead[] = [
   { id: '5', sourceType: 'EMAIL', sourceReference: 'Support ticket escalation', leadName: 'Unknown Contact', email: 'info@smallbiz.co', company: 'SmallBiz Co', notes: 'Generic inquiry from company email. Could not extract individual name. Low confidence.', confidence: 0.35, status: 'REJECTED', createdAt: new Date(Date.now() - 172800000).toISOString() },
 ];
 
+/* ── AI Generation API (POST endpoints) ──────────────────────── */
+const AI = '/api/v1/ai';
+
+export interface GeneratedNBA { action: string; reason: string; priority: number }
+export interface GeneratedEmailDraft { subject: string; body: string; suggestions: string[] }
+export interface GeneratedMeetingSummary {
+  id?: string; meetingTitle: string; meetingDate?: string;
+  participants: string[]; summary: string; actionItems: string[];
+  keyDecisions: string[]; crmUpdates: { entityType: string; entityId: string; field: string; suggestedValue: string; reason: string }[];
+}
+
+async function postAi<T>(path: string, body: unknown, fallback: T): Promise<T> {
+  try {
+    const r = await api.post<ApiResponse<T>>(`${AI}${path}`, body);
+    return r.data.data ?? fallback;
+  } catch { return fallback; }
+}
+
 /* ── Service ─────────────────────────────────────────────────── */
 export const aiInsightsService = {
   getLeadScores: (): PredictiveLeadScore[] => loadJson(K.leads, DEFAULT_LEAD_SCORES),
@@ -197,4 +215,15 @@ export const aiInsightsService = {
   fetchAutoLeads: (): Promise<AutoLead[]> =>
     tryApi(() => api.get<ApiResponse<AutoLead[]>>(`${INSIGHTS}/auto-leads`).then(r => r.data.data!), loadJson(K.autoLeads, DEFAULT_AUTO_LEADS)),
   saveAutoLeads: (d: AutoLead[]) => saveJson(K.autoLeads, d),
+
+  // ── AI Generation (POST) ──
+  generateNextBestActions: (entityType: string, entityId: string, context: Record<string, unknown> = {}): Promise<{ actions: GeneratedNBA[] }> =>
+    postAi('/next-best-action', { entityType, entityId, context }, { actions: [] }),
+
+  generateEmailDraft: (to: string, subjectContext: string, tone: string, context?: string): Promise<GeneratedEmailDraft> =>
+    postAi('/email-draft', { to, subjectContext, tone, context }, { subject: '', body: '', suggestions: [] }),
+
+  generateMeetingSummary: (meetingTitle: string, transcript: string, meetingDate?: string, participants?: string[], relatedEntityType?: string, relatedEntityId?: string): Promise<GeneratedMeetingSummary> =>
+    postAi('/meeting-summary', { meetingTitle, transcript, meetingDate, participants, relatedEntityType, relatedEntityId },
+      { meetingTitle, participants: [], summary: '', actionItems: [], keyDecisions: [], crmUpdates: [] }),
 };
