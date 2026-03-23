@@ -29,6 +29,15 @@ public class ContactController {
 
     private final ContactService contactService;
 
+    // ── Data Health Scan ─────────────────────────────────────
+    @GetMapping("/data-health")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
+    @Operation(summary = "Get data health report with stale record detection")
+    public ResponseEntity<ApiResponse<DataHealthResponse>> getDataHealth(
+            @RequestParam(defaultValue = "30") int staleDays) {
+        return ResponseEntity.ok(ApiResponse.success(contactService.getDataHealth(staleDays)));
+    }
+
     // ── Feature 1: CRUD ──────────────────────────────────────
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'USER')")
@@ -228,15 +237,6 @@ public class ContactController {
             @AuthenticationPrincipal UserPrincipal principal) {
         ContactResponse response = contactService.mergeContacts(primaryId, duplicateId, principal.getUserId());
         return ResponseEntity.ok(ApiResponse.success(response, "Contacts merged successfully"));
-    }
-
-    // ── Data Health Scan ─────────────────────────────────────
-    @GetMapping("/data-health")
-    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER')")
-    @Operation(summary = "Get data health report with stale record detection")
-    public ResponseEntity<ApiResponse<DataHealthResponse>> getDataHealth(
-            @RequestParam(defaultValue = "30") int staleDays) {
-        return ResponseEntity.ok(ApiResponse.success(contactService.getDataHealth(staleDays)));
     }
 
     // ── Feature 10: Analytics ────────────────────────────────
