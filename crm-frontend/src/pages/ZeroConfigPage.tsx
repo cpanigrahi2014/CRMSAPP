@@ -29,11 +29,12 @@ import type {
   CsvFieldDetectionResult, CsvFieldMapping,
   ContactEnrichmentResult,
   OnboardingStatus, OnboardingStep,
+  IndustryFieldInfo,
 } from '../types';
 import {
   detectCsvFields, enrichContact,
   getOnboardingStatus, completeOnboardingStep, resetOnboarding,
-  getOnboardingGuidance,
+  getOnboardingGuidance, getSupportedIndustries,
   DEFAULT_ONBOARDING_STATUS, DEFAULT_CSV_DETECTION, DEFAULT_ENRICHMENT,
 } from '../services/zeroConfigService';
 import { PageHeader } from '../components';
@@ -57,6 +58,8 @@ const ZeroConfigPage: React.FC = () => {
   /* ---- CSV Detection state ---- */
   const [csvText, setCsvText] = useState('');
   const [csvEntityType, setCsvEntityType] = useState('account');
+  const [csvIndustry, setCsvIndustry] = useState('');
+  const [csvIndustries, setCsvIndustries] = useState<string[]>([]);
   const [csvResult, setCsvResult] = useState<CsvFieldDetectionResult | null>(null);
   const [csvLoading, setCsvLoading] = useState(false);
 
@@ -76,6 +79,12 @@ const ZeroConfigPage: React.FC = () => {
         if (status && Array.isArray(status.steps)) setOnboarding(status);
       } catch {
         /* keep defaults */
+      }
+      try {
+        const ind = await getSupportedIndustries();
+        if (Array.isArray(ind)) setCsvIndustries(ind);
+      } catch {
+        setCsvIndustries(['real_estate', 'healthcare', 'technology', 'finance', 'education', 'manufacturing']);
       }
     })();
   }, []);
@@ -129,7 +138,7 @@ const ZeroConfigPage: React.FC = () => {
     if (!csvText.trim()) { setSnack('Paste CSV content first'); return; }
     setCsvLoading(true);
     try {
-      const result = await detectCsvFields(csvText, csvEntityType);
+      const result = await detectCsvFields(csvText, csvEntityType, csvIndustry || undefined);
       if (result && Array.isArray(result.fieldMappings)) setCsvResult(result);
       else setCsvResult(DEFAULT_CSV_DETECTION);
     } catch {
@@ -137,7 +146,7 @@ const ZeroConfigPage: React.FC = () => {
       setSnack('Using sample detection (API unavailable)');
     }
     setCsvLoading(false);
-  }, [csvText, csvEntityType]);
+  }, [csvText, csvEntityType, csvIndustry]);
 
   const handleEnrich = useCallback(async () => {
     if (!enrichName.trim() && !enrichEmail.trim()) { setSnack('Enter at least a name or email'); return; }
@@ -318,6 +327,23 @@ const ZeroConfigPage: React.FC = () => {
               <option value="contact">Contact</option>
               <option value="lead">Lead</option>
             </TextField>
+            <TextField
+              select
+              fullWidth
+              label="Industry (optional)"
+              value={csvIndustry}
+              onChange={(e) => setCsvIndustry(e.target.value)}
+              SelectProps={{ native: true }}
+              sx={{ mb: 2 }}
+              helperText="Shows industry-specific fields"
+            >
+              <option value="">None (default fields)</option>
+              {csvIndustries.map(ind => (
+                <option key={ind} value={ind}>
+                  {ind.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
+                </option>
+              ))}
+            </TextField>
             <Button
               fullWidth
               variant="contained"
@@ -365,6 +391,7 @@ const ZeroConfigPage: React.FC = () => {
                   <TableRow>
                     <TableCell><strong>CSV Header</strong></TableCell>
                     <TableCell><strong>CRM Field</strong></TableCell>
+                    <TableCell><strong>Source</strong></TableCell>
                     <TableCell><strong>Data Type</strong></TableCell>
                     <TableCell><strong>Confidence</strong></TableCell>
                     <TableCell><strong>Sample</strong></TableCell>
@@ -376,6 +403,15 @@ const ZeroConfigPage: React.FC = () => {
                       <TableCell>{m.csvHeader}</TableCell>
                       <TableCell>
                         <Chip label={m.crmField} size="small" color="primary" variant="outlined" />
+                      </TableCell>
+                      <TableCell>
+                        {m.isIndustryField ? (
+                          <Chip label="Industry" size="small" color="secondary" />
+                        ) : m.isCustomField ? (
+                          <Chip label="Custom" size="small" color="info" />
+                        ) : (
+                          <Chip label="Standard" size="small" variant="outlined" />
+                        )}
                       </TableCell>
                       <TableCell>{m.dataType}</TableCell>
                       <TableCell>
@@ -400,6 +436,25 @@ const ZeroConfigPage: React.FC = () => {
                 <br />
                 These columns don&apos;t match known CRM fields. You can create custom fields for them.
               </Alert>
+            )}
+
+            {csvResult.industryFields && csvResult.industryFields.length > 0 && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Available Industry Fields ({csvResult.industry?.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase())})
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                  {csvResult.industryFields.map((f: IndustryFieldInfo) => (
+                    <Chip
+                      key={f.fieldName}
+                      label={f.label}
+                      size="small"
+                      color="secondary"
+                      variant="outlined"
+                    />
+                  ))}
+                </Box>
+              </Box>
             )}
           </Paper>
         )}

@@ -6,6 +6,8 @@ import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.List;
+
 @Data
 @Builder
 @NoArgsConstructor
@@ -17,4 +19,10 @@ public class CsvFieldDetectionRequest {
 
     @NotBlank(message = "Entity type is required (e.g. account, contact, lead)")
     private String entityType;
+
+    /** Optional industry for industry-specific field suggestions (e.g. "Real Estate", "Healthcare") */
+    private String industry;
+
+    /** Optional list of custom field names (from AI Config) to include in detection */
+    private List<String> customFields;
 }

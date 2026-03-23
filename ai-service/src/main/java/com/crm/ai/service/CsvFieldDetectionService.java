@@ -3,6 +3,7 @@ package com.crm.ai.service;
 import com.crm.ai.dto.CsvFieldDetectionRequest;
 import com.crm.ai.dto.CsvFieldDetectionResponse;
 import com.crm.ai.dto.CsvFieldDetectionResponse.FieldMapping;
+import com.crm.ai.dto.CsvFieldDetectionResponse.IndustryFieldInfo;
 import com.crm.ai.dto.LlmRequest;
 import com.crm.ai.dto.LlmResponse;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -11,9 +12,9 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 @Slf4j
 @Service
@@ -35,8 +36,156 @@ public class CsvFieldDetectionService {
                     "city", "state", "country", "notes")
     );
 
+    // ── Industry-specific field templates ──────────────────────────
+    private static final Map<String, Map<String, List<IndustryFieldInfo>>> INDUSTRY_FIELDS = new HashMap<>();
+
+    static {
+        // Real Estate
+        INDUSTRY_FIELDS.put("real_estate", Map.of(
+                "lead", List.of(
+                        new IndustryFieldInfo("listing_price", "Listing Price", "currency", false),
+                        new IndustryFieldInfo("property_type", "Property Type", "picklist", false),
+                        new IndustryFieldInfo("bedrooms", "Bedrooms", "number", false),
+                        new IndustryFieldInfo("bathrooms", "Bathrooms", "number", false),
+                        new IndustryFieldInfo("square_footage", "Square Footage", "number", false),
+                        new IndustryFieldInfo("mls_number", "MLS Number", "text", false),
+                        new IndustryFieldInfo("listing_status", "Listing Status", "picklist", false),
+                        new IndustryFieldInfo("property_address", "Property Address", "text", false),
+                        new IndustryFieldInfo("budget_min", "Budget Min", "currency", false),
+                        new IndustryFieldInfo("budget_max", "Budget Max", "currency", false)
+                ),
+                "account", List.of(
+                        new IndustryFieldInfo("license_number", "License Number", "text", false),
+                        new IndustryFieldInfo("brokerage_name", "Brokerage Name", "text", false),
+                        new IndustryFieldInfo("service_area", "Service Area", "text", false),
+                        new IndustryFieldInfo("total_listings", "Total Listings", "number", false)
+                ),
+                "contact", List.of(
+                        new IndustryFieldInfo("property_preference", "Property Preference", "text", false),
+                        new IndustryFieldInfo("pre_approved", "Pre-Approved", "boolean", false),
+                        new IndustryFieldInfo("buyer_or_seller", "Buyer/Seller", "picklist", false),
+                        new IndustryFieldInfo("preferred_location", "Preferred Location", "text", false)
+                )
+        ));
+
+        // Healthcare
+        INDUSTRY_FIELDS.put("healthcare", Map.of(
+                "lead", List.of(
+                        new IndustryFieldInfo("patient_id", "Patient ID", "text", false),
+                        new IndustryFieldInfo("insurance_provider", "Insurance Provider", "text", false),
+                        new IndustryFieldInfo("referral_doctor", "Referral Doctor", "text", false),
+                        new IndustryFieldInfo("appointment_type", "Appointment Type", "picklist", false),
+                        new IndustryFieldInfo("urgency_level", "Urgency Level", "picklist", false)
+                ),
+                "account", List.of(
+                        new IndustryFieldInfo("facility_type", "Facility Type", "picklist", false),
+                        new IndustryFieldInfo("bed_count", "Bed Count", "number", false),
+                        new IndustryFieldInfo("npi_number", "NPI Number", "text", false),
+                        new IndustryFieldInfo("specialties", "Specialties", "text", false)
+                ),
+                "contact", List.of(
+                        new IndustryFieldInfo("medical_license", "Medical License", "text", false),
+                        new IndustryFieldInfo("specialty", "Specialty", "text", false),
+                        new IndustryFieldInfo("credentials", "Credentials", "text", false)
+                )
+        ));
+
+        // Technology / SaaS
+        INDUSTRY_FIELDS.put("technology", Map.of(
+                "lead", List.of(
+                        new IndustryFieldInfo("tech_stack", "Tech Stack", "text", false),
+                        new IndustryFieldInfo("current_solution", "Current Solution", "text", false),
+                        new IndustryFieldInfo("license_count", "License Count", "number", false),
+                        new IndustryFieldInfo("contract_end_date", "Contract End Date", "date", false),
+                        new IndustryFieldInfo("use_case", "Use Case", "text", false)
+                ),
+                "account", List.of(
+                        new IndustryFieldInfo("tech_stack", "Tech Stack", "text", false),
+                        new IndustryFieldInfo("arr", "ARR", "currency", false),
+                        new IndustryFieldInfo("subscription_tier", "Subscription Tier", "picklist", false),
+                        new IndustryFieldInfo("deployment_type", "Deployment Type", "picklist", false)
+                ),
+                "contact", List.of(
+                        new IndustryFieldInfo("github_url", "GitHub URL", "url", false),
+                        new IndustryFieldInfo("technical_role", "Technical Role", "boolean", false)
+                )
+        ));
+
+        // Finance / Insurance
+        INDUSTRY_FIELDS.put("finance", Map.of(
+                "lead", List.of(
+                        new IndustryFieldInfo("policy_type", "Policy Type", "picklist", false),
+                        new IndustryFieldInfo("coverage_amount", "Coverage Amount", "currency", false),
+                        new IndustryFieldInfo("risk_profile", "Risk Profile", "picklist", false),
+                        new IndustryFieldInfo("premium_budget", "Premium Budget", "currency", false)
+                ),
+                "account", List.of(
+                        new IndustryFieldInfo("aum", "Assets Under Management", "currency", false),
+                        new IndustryFieldInfo("regulatory_id", "Regulatory ID", "text", false),
+                        new IndustryFieldInfo("account_tier", "Account Tier", "picklist", false)
+                ),
+                "contact", List.of(
+                        new IndustryFieldInfo("financial_advisor", "Financial Advisor", "boolean", false),
+                        new IndustryFieldInfo("certification", "Certification", "text", false)
+                )
+        ));
+
+        // Education
+        INDUSTRY_FIELDS.put("education", Map.of(
+                "lead", List.of(
+                        new IndustryFieldInfo("program_interest", "Program Interest", "text", false),
+                        new IndustryFieldInfo("enrollment_term", "Enrollment Term", "text", false),
+                        new IndustryFieldInfo("gpa", "GPA", "number", false),
+                        new IndustryFieldInfo("financial_aid", "Financial Aid Needed", "boolean", false)
+                ),
+                "account", List.of(
+                        new IndustryFieldInfo("institution_type", "Institution Type", "picklist", false),
+                        new IndustryFieldInfo("student_count", "Student Count", "number", false),
+                        new IndustryFieldInfo("accreditation", "Accreditation", "text", false)
+                ),
+                "contact", List.of(
+                        new IndustryFieldInfo("academic_title", "Academic Title", "text", false),
+                        new IndustryFieldInfo("faculty_department", "Faculty Department", "text", false)
+                )
+        ));
+
+        // Manufacturing
+        INDUSTRY_FIELDS.put("manufacturing", Map.of(
+                "lead", List.of(
+                        new IndustryFieldInfo("product_interest", "Product Interest", "text", false),
+                        new IndustryFieldInfo("order_volume", "Order Volume", "number", false),
+                        new IndustryFieldInfo("delivery_timeline", "Delivery Timeline", "text", false)
+                ),
+                "account", List.of(
+                        new IndustryFieldInfo("plant_count", "Plant Count", "number", false),
+                        new IndustryFieldInfo("iso_certification", "ISO Certification", "text", false),
+                        new IndustryFieldInfo("production_capacity", "Production Capacity", "text", false)
+                ),
+                "contact", List.of(
+                        new IndustryFieldInfo("plant_location", "Plant Location", "text", false),
+                        new IndustryFieldInfo("procurement_role", "Procurement Role", "boolean", false)
+                )
+        ));
+    }
+
+    /** Get supported industries list */
+    public List<String> getSupportedIndustries() {
+        return new ArrayList<>(INDUSTRY_FIELDS.keySet());
+    }
+
+    /** Get industry-specific fields for an entity type */
+    public List<IndustryFieldInfo> getIndustryFields(String industry, String entityType) {
+        if (industry == null || industry.isBlank()) return List.of();
+        String key = normalizeIndustry(industry);
+        Map<String, List<IndustryFieldInfo>> entityMap = INDUSTRY_FIELDS.get(key);
+        if (entityMap == null) return List.of();
+        return entityMap.getOrDefault(entityType.toLowerCase(), List.of());
+    }
+
     public CsvFieldDetectionResponse detectFields(CsvFieldDetectionRequest request) {
         String entityType = request.getEntityType().toLowerCase();
+        String industry = request.getIndustry();
+        List<String> customFields = request.getCustomFields();
         String[] lines = request.getCsvContent().split("\n");
         if (lines.length < 1) {
             return CsvFieldDetectionResponse.builder()
@@ -45,15 +194,26 @@ public class CsvFieldDetectionService {
                     .unmappedColumns(List.of())
                     .totalColumns(0)
                     .mappedColumns(0)
+                    .industryFields(List.of())
+                    .industry(industry)
                     .build();
         }
 
         String[] headers = lines[0].trim().split(",");
-        // Collect sample values from first data row
         String[] sampleValues = lines.length > 1 ? lines[1].trim().split(",", -1) : new String[0];
 
-        List<String> targetFields = ENTITY_FIELDS.getOrDefault(entityType,
+        // Build combined target field list: base + industry + custom
+        List<String> baseFields = ENTITY_FIELDS.getOrDefault(entityType,
                 ENTITY_FIELDS.get("contact"));
+        List<IndustryFieldInfo> industryFieldInfos = getIndustryFields(industry, entityType);
+        List<String> industryFieldNames = industryFieldInfos.stream()
+                .map(IndustryFieldInfo::getFieldName).collect(Collectors.toList());
+
+        List<String> targetFields = Stream.of(
+                baseFields.stream(),
+                industryFieldNames.stream(),
+                customFields != null ? customFields.stream() : Stream.<String>empty()
+        ).flatMap(s -> s).distinct().collect(Collectors.toList());
 
         String prompt = buildDetectionPrompt(headers, sampleValues, entityType, targetFields);
 
@@ -65,10 +225,18 @@ public class CsvFieldDetectionService {
 
         try {
             LlmResponse response = llmService.call(llmRequest);
-            return parseDetectionResponse(response.getContent(), entityType, headers, sampleValues);
+            CsvFieldDetectionResponse result = parseDetectionResponse(
+                    response.getContent(), entityType, headers, sampleValues);
+            result.setIndustryFields(industryFieldInfos);
+            result.setIndustry(industry);
+            return result;
         } catch (Exception e) {
             log.warn("LLM field detection failed, falling back to heuristic: {}", e.getMessage());
-            return heuristicDetection(entityType, headers, sampleValues);
+            CsvFieldDetectionResponse result = heuristicDetection(entityType, headers,
+                    sampleValues, industryFieldNames, customFields);
+            result.setIndustryFields(industryFieldInfos);
+            result.setIndustry(industry);
+            return result;
         }
     }
 
@@ -144,10 +312,14 @@ public class CsvFieldDetectionService {
     }
 
     private CsvFieldDetectionResponse heuristicDetection(String entityType, String[] headers,
-                                                          String[] sampleValues) {
+                                                          String[] sampleValues,
+                                                          List<String> industryFieldNames,
+                                                          List<String> customFields) {
         List<FieldMapping> mappings = new ArrayList<>();
         List<String> unmapped = new ArrayList<>();
-        Map<String, String> heuristics = Map.ofEntries(
+
+        // Base heuristics
+        Map<String, String> heuristics = new HashMap<>(Map.ofEntries(
                 Map.entry("name", "name"), Map.entry("company name", "name"),
                 Map.entry("company", "company"), Map.entry("email", "email"),
                 Map.entry("e-mail", "email"), Map.entry("phone", "phone"),
@@ -163,19 +335,43 @@ public class CsvFieldDetectionService {
                 Map.entry("description", "description"), Map.entry("notes", "notes"),
                 Map.entry("revenue", "annual_revenue"), Map.entry("annual revenue", "annual_revenue"),
                 Map.entry("employees", "number_of_employees"), Map.entry("# employees", "number_of_employees")
-        );
+        ));
+
+        // Add industry field heuristics (snake_case → match header variations)
+        if (industryFieldNames != null) {
+            for (String f : industryFieldNames) {
+                String normalized = f.toLowerCase().replace("_", " ");
+                heuristics.put(normalized, f);
+                heuristics.put(f.toLowerCase(), f);
+                heuristics.put(f.toLowerCase().replace("_", ""), f);
+            }
+        }
+
+        // Add custom field heuristics
+        if (customFields != null) {
+            for (String f : customFields) {
+                String normalized = f.toLowerCase().replace("_", " ");
+                heuristics.put(normalized, f);
+                heuristics.put(f.toLowerCase(), f);
+                heuristics.put(f.toLowerCase().replace("_", ""), f);
+            }
+        }
 
         for (int i = 0; i < headers.length; i++) {
             String h = headers[i].trim().toLowerCase();
             String sampleValue = i < sampleValues.length ? sampleValues[i].trim() : "";
             String match = heuristics.get(h);
             if (match != null) {
+                boolean isIndustryField = industryFieldNames != null && industryFieldNames.contains(match);
+                boolean isCustomField = customFields != null && customFields.contains(match);
                 mappings.add(FieldMapping.builder()
                         .csvHeader(headers[i].trim())
                         .crmField(match)
                         .dataType(detectDataType(sampleValue))
                         .confidence(0.85)
                         .sampleValue(sampleValue)
+                        .isIndustryField(isIndustryField)
+                        .isCustomField(isCustomField)
                         .build());
             } else {
                 unmapped.add(headers[i].trim());
@@ -189,6 +385,21 @@ public class CsvFieldDetectionService {
                 .totalColumns(headers.length)
                 .mappedColumns(mappings.size())
                 .build();
+    }
+
+    private String normalizeIndustry(String industry) {
+        if (industry == null) return "";
+        String normalized = industry.toLowerCase().trim()
+                .replaceAll("[^a-z0-9]+", "_")
+                .replaceAll("^_|_$", "");
+        // Map common variations
+        if (normalized.contains("real") && normalized.contains("estate")) return "real_estate";
+        if (normalized.contains("health") || normalized.contains("medical") || normalized.contains("pharma")) return "healthcare";
+        if (normalized.contains("tech") || normalized.contains("software") || normalized.contains("saas") || normalized.contains("it_")) return "technology";
+        if (normalized.contains("financ") || normalized.contains("bank") || normalized.contains("insur")) return "finance";
+        if (normalized.contains("educ") || normalized.contains("university") || normalized.contains("school")) return "education";
+        if (normalized.contains("manufactur") || normalized.contains("industrial")) return "manufacturing";
+        return normalized;
     }
 
     private String detectDataType(String value) {

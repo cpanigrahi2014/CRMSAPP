@@ -4,6 +4,7 @@ import type {
   CsvFieldDetectionResult,
   ContactEnrichmentResult,
   OnboardingStatus,
+  IndustryFieldInfo,
 } from '../types';
 
 const AI_BASE = '/api/v1/ai';
@@ -12,11 +13,33 @@ const AI_BASE = '/api/v1/ai';
 
 export async function detectCsvFields(
   csvContent: string,
-  entityType: string
+  entityType: string,
+  industry?: string,
+  customFields?: string[]
 ): Promise<CsvFieldDetectionResult> {
   const { data } = await api.post<ApiResponse<CsvFieldDetectionResult>>(
     `${AI_BASE}/csv-detect-fields`,
-    { csvContent, entityType }
+    { csvContent, entityType, industry, customFields }
+  );
+  return data.data;
+}
+
+/** Get industry-specific fields for an entity type */
+export async function getIndustryFields(
+  industry: string,
+  entityType: string
+): Promise<{ industry: string; entityType: string; fields: IndustryFieldInfo[]; supportedIndustries: string[] }> {
+  const { data } = await api.get<ApiResponse<{ industry: string; entityType: string; fields: IndustryFieldInfo[]; supportedIndustries: string[] }>>(
+    `${AI_BASE}/csv-industry-fields`,
+    { params: { industry, entityType } }
+  );
+  return data.data;
+}
+
+/** Get list of supported industries */
+export async function getSupportedIndustries(): Promise<string[]> {
+  const { data } = await api.get<ApiResponse<string[]>>(
+    `${AI_BASE}/csv-supported-industries`
   );
   return data.data;
 }

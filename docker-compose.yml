@@ -517,8 +517,10 @@ services:
     ports:
       - "3000:80"
     depends_on:
-      auth-service:
-        condition: service_healthy
+      - postgres
+      - redis
+      - kafka
+    restart: unless-stopped
     networks:
       - crm-network
 

@@ -38,7 +38,7 @@ import {
 } from '@mui/icons-material';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { useSnackbar } from 'notistack';
-import { PageHeader, StatusChip, DataTable, ModalForm } from '../components';
+import { PageHeader, StatusChip, DataTable, ModalForm, ImportPreviewDialog } from '../components';
 import KanbanBoard, { KanbanColumn } from '../components/KanbanBoard';
 import { opportunityService } from '../services';
 import { Opportunity, OpportunityStage, PipelineStage } from '../types';
@@ -88,7 +88,7 @@ const OpportunitiesPage: React.FC = () => {
   const [formData, setFormData] = useState(emptyOpp);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const importInputRef = React.useRef<HTMLInputElement>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   // stage management
   const [stageDialogOpen, setStageDialogOpen] = useState(false);
@@ -228,9 +228,7 @@ const OpportunitiesPage: React.FC = () => {
     }
   };
 
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleImportConfirm = async (file: File) => {
     try {
       const res = await opportunityService.importCsv(file);
       enqueueSnackbar(`Imported ${(res.data as any)?.imported ?? 0} opportunities`, { variant: 'success' });
@@ -238,7 +236,6 @@ const OpportunitiesPage: React.FC = () => {
     } catch {
       enqueueSnackbar('Import failed', { variant: 'error' });
     }
-    if (importInputRef.current) importInputRef.current.value = '';
   };
 
   /* ---- stage management ---- */
@@ -362,8 +359,7 @@ const OpportunitiesPage: React.FC = () => {
 
       {/* Import / Export bar */}
       <Box sx={{ mb: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-        <Button variant="outlined" size="small" startIcon={<ImportIcon />} onClick={() => importInputRef.current?.click()}>Import CSV</Button>
-        <input type="file" accept=".csv" hidden ref={importInputRef} onChange={handleImport} />
+        <Button variant="outlined" size="small" startIcon={<ImportIcon />} onClick={() => setImportDialogOpen(true)}>Import CSV</Button>
         <Button variant="outlined" size="small" startIcon={<ExportIcon />} onClick={handleExport}>Export CSV</Button>
       </Box>
 
@@ -572,6 +568,14 @@ const OpportunitiesPage: React.FC = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Import Preview Dialog with industry-aware field detection */}
+      <ImportPreviewDialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onConfirmImport={handleImportConfirm}
+        entityType="opportunity"
+      />
     </>
   );
 };

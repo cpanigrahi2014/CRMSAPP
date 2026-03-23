@@ -131,9 +131,35 @@ public class AiController {
     @Operation(summary = "Auto-detect and map CSV columns to CRM fields using AI")
     public ResponseEntity<ApiResponse<CsvFieldDetectionResponse>> detectCsvFields(
             @Valid @RequestBody CsvFieldDetectionRequest request) {
-        log.info("REST request to detect CSV fields for entity type: {}", request.getEntityType());
+        log.info("REST request to detect CSV fields for entity type: {}, industry: {}",
+                request.getEntityType(), request.getIndustry());
         CsvFieldDetectionResponse response = csvFieldDetectionService.detectFields(request);
         return ResponseEntity.ok(ApiResponse.success(response, "CSV fields detected successfully"));
+    }
+
+    @GetMapping("/csv-industry-fields")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'USER')")
+    @Operation(summary = "Get industry-specific field definitions for an entity type")
+    public ResponseEntity<ApiResponse<java.util.Map<String, Object>>> getIndustryFields(
+            @RequestParam String industry,
+            @RequestParam String entityType) {
+        log.info("REST request to get industry fields: industry={}, entityType={}", industry, entityType);
+        var fields = csvFieldDetectionService.getIndustryFields(industry, entityType);
+        var industries = csvFieldDetectionService.getSupportedIndustries();
+        return ResponseEntity.ok(ApiResponse.success(
+                java.util.Map.of("industry", industry, "entityType", entityType,
+                        "fields", fields, "supportedIndustries", industries),
+                "Industry fields retrieved"));
+    }
+
+    @GetMapping("/csv-supported-industries")
+    @PreAuthorize("hasAnyRole('ADMIN', 'MANAGER', 'USER')")
+    @Operation(summary = "Get list of supported industries with field templates")
+    public ResponseEntity<ApiResponse<java.util.List<String>>> getSupportedIndustries() {
+        log.info("REST request to get supported industries");
+        return ResponseEntity.ok(ApiResponse.success(
+                csvFieldDetectionService.getSupportedIndustries(),
+                "Supported industries retrieved"));
     }
 
     // ---- Contact Enrichment ----

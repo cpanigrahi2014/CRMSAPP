@@ -1637,6 +1637,17 @@ export interface CsvFieldMapping {
   dataType: string;
   confidence: number;
   sampleValue: string;
+  /** True if this field is from an industry template */
+  isIndustryField?: boolean;
+  /** True if this field is a custom field from AI Config */
+  isCustomField?: boolean;
+}
+
+export interface IndustryFieldInfo {
+  fieldName: string;
+  label: string;
+  fieldType: string;
+  required: boolean;
 }
 
 export interface CsvFieldDetectionResult {
@@ -1645,6 +1656,10 @@ export interface CsvFieldDetectionResult {
   unmappedColumns: string[];
   totalColumns: number;
   mappedColumns: number;
+  /** Industry used for detection */
+  industry?: string;
+  /** Industry-specific fields available for this entity type */
+  industryFields?: IndustryFieldInfo[];
 }
 
 export interface EnrichedField {

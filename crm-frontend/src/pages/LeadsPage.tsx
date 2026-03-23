@@ -27,7 +27,7 @@ import {
   Download as DownloadIcon,
   CheckBox as BulkIcon,
 } from '@mui/icons-material';
-import { DataTable, PageHeader, StatusChip, ConfirmDialog, ModalForm } from '../components';
+import { DataTable, PageHeader, StatusChip, ConfirmDialog, ModalForm, ImportPreviewDialog } from '../components';
 import { leadService } from '../services';
 import { Lead, LeadStatus, LeadSource, OpportunityStage, ConvertLeadRequest } from '../types';
 import { useSnackbar } from 'notistack';
@@ -86,6 +86,9 @@ const LeadsPage: React.FC = () => {
 
   // bulk selection
   const [selectedIds, setSelectedIds] = useState<GridRowSelectionModel>([]);
+
+  // import preview dialog
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   /* ---- data fetch ---- */
   const fetchLeads = useCallback(async () => {
@@ -206,15 +209,13 @@ const LeadsPage: React.FC = () => {
   };
 
   /* ---- Import / Export ---- */
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files?.[0]) return;
+  const handleImportConfirm = async (file: File) => {
     try {
-      const res = await leadService.importCSV(e.target.files[0]);
+      const res = await leadService.importCSV(file);
       const d = res.data as any;
       enqueueSnackbar(`Imported ${d.imported} leads (${d.errors} errors)`, { variant: 'success' });
       fetchLeads();
     } catch { enqueueSnackbar('Import failed', { variant: 'error' }); }
-    e.target.value = '';
   };
 
   const handleExport = async () => {
@@ -333,9 +334,8 @@ const LeadsPage: React.FC = () => {
         <Button variant="outlined" size="small" startIcon={<DownloadIcon />} onClick={handleExport}>
           Export CSV
         </Button>
-        <Button variant="outlined" size="small" component="label" startIcon={<UploadIcon />}>
+        <Button variant="outlined" size="small" startIcon={<UploadIcon />} onClick={() => setImportDialogOpen(true)}>
           Import CSV
-          <input type="file" accept=".csv" hidden onChange={handleImport} />
         </Button>
         {selectedIds.length > 0 && (
           <>
@@ -493,6 +493,14 @@ const LeadsPage: React.FC = () => {
           </Grid>
         </Grid>
       </ModalForm>
+
+      {/* Import Preview Dialog with industry-aware field detection */}
+      <ImportPreviewDialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onConfirmImport={handleImportConfirm}
+        entityType="lead"
+      />
     </>
   );
 };

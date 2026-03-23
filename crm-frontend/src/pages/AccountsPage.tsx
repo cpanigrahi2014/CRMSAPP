@@ -22,7 +22,7 @@ import {
   FileUpload as ImportIcon,
   FileDownload as ExportIcon,
 } from '@mui/icons-material';
-import { DataTable, PageHeader, ConfirmDialog, ModalForm } from '../components';
+import { DataTable, PageHeader, ConfirmDialog, ModalForm, ImportPreviewDialog } from '../components';
 import { accountService } from '../services';
 import { Account } from '../types';
 import { useSnackbar } from 'notistack';
@@ -63,7 +63,7 @@ const AccountsPage: React.FC = () => {
 
   // Bulk / Import
   const [selectedIds, setSelectedIds] = useState<GridRowSelectionModel>([]);
-  const importInputRef = React.useRef<HTMLInputElement>(null);
+  const [importDialogOpen, setImportDialogOpen] = useState(false);
 
   const fetchAccounts = useCallback(async () => {
     setLoading(true);
@@ -159,9 +159,7 @@ const AccountsPage: React.FC = () => {
     }
   };
 
-  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  const handleImportConfirm = async (file: File) => {
     try {
       const res = await accountService.importCsv(file);
       enqueueSnackbar(`Imported ${(res.data as any)?.imported ?? 0} accounts`, { variant: 'success' });
@@ -169,7 +167,6 @@ const AccountsPage: React.FC = () => {
     } catch {
       enqueueSnackbar('Import failed', { variant: 'error' });
     }
-    if (importInputRef.current) importInputRef.current.value = '';
   };
 
   const handleChange = (field: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -270,8 +267,7 @@ const AccountsPage: React.FC = () => {
             Delete {selectedIds.length} Selected
           </Button>
         )}
-        <Button variant="outlined" size="small" startIcon={<ImportIcon />} onClick={() => importInputRef.current?.click()}>Import CSV</Button>
-        <input type="file" accept=".csv" hidden ref={importInputRef} onChange={handleImport} />
+        <Button variant="outlined" size="small" startIcon={<ImportIcon />} onClick={() => setImportDialogOpen(true)}>Import CSV</Button>
         <Button variant="outlined" size="small" startIcon={<ExportIcon />} onClick={handleExport}>Export CSV</Button>
       </Box>
 
@@ -354,6 +350,14 @@ const AccountsPage: React.FC = () => {
         confirmColor="error"
         onConfirm={handleDelete}
         onCancel={() => setDeleteId(null)}
+      />
+
+      {/* Import Preview Dialog with industry-aware field detection */}
+      <ImportPreviewDialog
+        open={importDialogOpen}
+        onClose={() => setImportDialogOpen(false)}
+        onConfirmImport={handleImportConfirm}
+        entityType="account"
       />
     </>
   );
