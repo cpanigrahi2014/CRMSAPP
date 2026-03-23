@@ -24,12 +24,14 @@ import {
   History as AuditIcon, CheckCircle, Cancel as CancelIcon,
   ContentCopy as CopyIcon, QrCode2 as QrIcon,
   FilterList, Download as DownloadIcon,
+  PeopleAlt as UsersIcon,
 } from '@mui/icons-material';
 import { securityService } from '../services/securityService';
 import { useAppSelector } from '../hooks/useRedux';
 import type {
   RoleDefinition, PermissionSet, Permission, FieldSecurity,
   RecordAccessRule, SsoProvider, MfaSetup, AuditLogEntry,
+  UserManagement,
 } from '../types';
 import { PageHeader } from '../components';
 /* ── Constants ─────────────────────────────────────────────── */
@@ -112,6 +114,13 @@ const SecurityPage: React.FC = () => {
   const [auditFilter, setAuditFilter] = useState('');
   const [auditPage, setAuditPage] = useState(0);
 
+  /* ── 9. User Management ──────────────────────────────────── */
+  const [users, setUsers] = useState<UserManagement[]>([]);
+  const [userFilter, setUserFilter] = useState('');
+  const [roleDialogUser, setRoleDialogUser] = useState<UserManagement | null>(null);
+  const [selectedRole, setSelectedRole] = useState('');
+  const [userPage, setUserPage] = useState(0);
+
   /* ── Load data ───────────────────────────────────────────── */
   useEffect(() => {
     // Immediate sync load from localStorage
@@ -146,6 +155,11 @@ const SecurityPage: React.FC = () => {
       if (Array.isArray(f)) setFieldRules(f);
       if (Array.isArray(s)) setSsoProviders(s);
       if (Array.isArray(a)) setAuditLogs(a);
+      // Load users
+      try {
+        const u = await securityService.fetchUsers();
+        if (Array.isArray(u)) setUsers(u);
+      } catch { /* ignore */ }
     };
     load();
   }, []);
@@ -392,6 +406,7 @@ const SecurityPage: React.FC = () => {
         <Tab icon={<SsoIcon />} label="SSO" iconPosition="start" />
         <Tab icon={<MfaIcon />} label="MFA" iconPosition="start" />
         <Tab icon={<AuditIcon />} label="Audit Logs" iconPosition="start" />
+        <Tab icon={<UsersIcon />} label="User Management" iconPosition="start" />
       </Tabs>
 
       {/* ╔═══════════════════════════════════════════════════════╗
@@ -803,8 +818,143 @@ const SecurityPage: React.FC = () => {
       </TabPanel>
 
       {/* ╔═══════════════════════════════════════════════════════╗
+         ║  TAB 7: USER MANAGEMENT                                 ║
+         ╚═══════════════════════════════════════════════════════╝ */}
+      <TabPanel value={tab} index={7}>
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 2 }}>
+          <Typography variant="h6">User Management</Typography>
+          <Button variant="outlined" onClick={async () => {
+            try {
+              const u = await securityService.fetchUsers();
+              if (Array.isArray(u)) setUsers(u);
+              notify('Users refreshed');
+            } catch { notify('Failed to load users', 'error'); }
+          }}>Refresh</Button>
+        </Box>
+        <Alert severity="info" sx={{ mb: 2 }}>
+          View all users in your tenant and assign roles. Changes take effect on next login.
+        </Alert>
+
+        <TextField
+          size="small" placeholder="Filter by name, email, or role..."
+          value={userFilter} onChange={(e) => { setUserFilter(e.target.value); setUserPage(0); }}
+          sx={{ mb: 2, width: 400 }}
+          InputProps={{ startAdornment: <FilterList sx={{ mr: 1, color: 'text.secondary' }} /> }}
+        />
+
+        <Paper>
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>User</TableCell>
+                <TableCell>Email</TableCell>
+                <TableCell>Roles</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Tenant</TableCell>
+                <TableCell>Created</TableCell>
+                <TableCell align="center">Actions</TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {users.length === 0 ? (
+                <TableRow><TableCell colSpan={7} align="center"><Typography color="text.secondary" sx={{ py: 3 }}>No users found</Typography></TableCell></TableRow>
+              ) : users
+                .filter((u) => {
+                  if (!userFilter) return true;
+                  const f = userFilter.toLowerCase();
+                  return u.email.toLowerCase().includes(f)
+                    || u.firstName.toLowerCase().includes(f)
+                    || u.lastName.toLowerCase().includes(f)
+                    || u.roles.some((r) => r.toLowerCase().includes(f));
+                })
+                .slice(userPage * 10, userPage * 10 + 10)
+                .map((u) => (
+                <TableRow key={u.id} hover>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <Avatar sx={{ width: 32, height: 32, bgcolor: u.roles.includes('ADMIN') ? 'error.main' : u.roles.includes('MANAGER') ? 'warning.main' : 'primary.main' }}>
+                        {u.firstName[0]}{u.lastName[0]}
+                      </Avatar>
+                      <Typography variant="body2">{u.firstName} {u.lastName}</Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell><Typography variant="body2">{u.email}</Typography></TableCell>
+                  <TableCell>
+                    <Box sx={{ display: 'flex', gap: 0.5, flexWrap: 'wrap' }}>
+                      {u.roles.map((r) => (
+                        <Chip key={r} label={r} size="small" color={r === 'ADMIN' ? 'error' : r === 'MANAGER' ? 'warning' : 'default'} />
+                      ))}
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Chip label={u.enabled ? 'Active' : 'Disabled'} size="small" color={u.enabled ? 'success' : 'default'} variant="outlined" />
+                  </TableCell>
+                  <TableCell><Typography variant="body2" fontFamily="monospace">{u.tenantId}</Typography></TableCell>
+                  <TableCell>{u.createdAt ? new Date(u.createdAt).toLocaleDateString() : '—'}</TableCell>
+                  <TableCell align="center">
+                    <Tooltip title="Assign Role">
+                      <IconButton size="small" onClick={() => { setRoleDialogUser(u); setSelectedRole(''); }}>
+                        <RoleIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+          <TablePagination
+            component="div" count={users.filter((u) => {
+              if (!userFilter) return true;
+              const f = userFilter.toLowerCase();
+              return u.email.toLowerCase().includes(f) || u.firstName.toLowerCase().includes(f) || u.lastName.toLowerCase().includes(f) || u.roles.some((r) => r.toLowerCase().includes(f));
+            }).length}
+            page={userPage} rowsPerPage={10}
+            rowsPerPageOptions={[10]}
+            onPageChange={(_, p) => setUserPage(p)}
+            onRowsPerPageChange={() => {}}
+          />
+        </Paper>
+      </TabPanel>
+
+      {/* ╔═══════════════════════════════════════════════════════╗
          ║  DIALOGS                                                ║
          ╚═══════════════════════════════════════════════════════╝ */}
+
+      {/* Assign Role Dialog */}
+      <Dialog open={!!roleDialogUser} onClose={() => setRoleDialogUser(null)} maxWidth="xs" fullWidth>
+        <DialogTitle>Assign Role to {roleDialogUser?.firstName} {roleDialogUser?.lastName}</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <Typography variant="body2" color="text.secondary">
+              Current roles: {roleDialogUser?.roles.join(', ') || 'None'}
+            </Typography>
+            <FormControl fullWidth>
+              <InputLabel>Role</InputLabel>
+              <Select value={selectedRole} label="Role" onChange={(e: SelectChangeEvent) => setSelectedRole(e.target.value)}>
+                {ROLE_NAMES.map((r) => <MenuItem key={r} value={r}>{r}</MenuItem>)}
+              </Select>
+            </FormControl>
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setRoleDialogUser(null)}>Cancel</Button>
+          <Button variant="contained" disabled={!selectedRole} onClick={async () => {
+            if (!roleDialogUser || !selectedRole) return;
+            try {
+              await securityService.assignRole(roleDialogUser.id, selectedRole);
+              setUsers((prev) => prev.map((u) =>
+                u.id === roleDialogUser.id
+                  ? { ...u, roles: Array.from(new Set([...u.roles, selectedRole])) }
+                  : u
+              ));
+              notify(`Role ${selectedRole} assigned to ${roleDialogUser.firstName} ${roleDialogUser.lastName}`);
+              setRoleDialogUser(null);
+            } catch {
+              notify('Failed to assign role', 'error');
+            }
+          }}>Assign</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Role Dialog */}
       <Dialog open={roleDialog} onClose={() => setRoleDialog(false)} maxWidth="sm" fullWidth>
