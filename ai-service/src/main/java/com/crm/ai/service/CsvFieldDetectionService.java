@@ -299,7 +299,7 @@ public class CsvFieldDetectionService {
             }
         } catch (Exception e) {
             log.warn("Failed to parse LLM response, using heuristic: {}", e.getMessage());
-            return heuristicDetection(entityType, headers, sampleValues);
+            return heuristicDetection(entityType, headers, sampleValues, List.of(), List.of());
         }
 
         return CsvFieldDetectionResponse.builder()
