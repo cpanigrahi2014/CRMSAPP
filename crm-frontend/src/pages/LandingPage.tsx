@@ -61,6 +61,18 @@ import {
   ArrowForward as ArrowIcon,
   PlayArrow as PlayIcon,
   Terminal as TerminalIcon,
+  SupportAgent as CasesIcon,
+  Campaign as CampaignIcon,
+  Forum as CollabIcon,
+  Notifications as NotifIcon,
+  Task as TaskIcon,
+  Code as DevIcon,
+  UploadFile as ImportIcon,
+  ViewKanban as KanbanIcon,
+  HealthAndSafety as DataHealthIcon,
+  Api as ApiIcon,
+  Language as LanguageIcon,
+  Groups as TeamsIcon,
 } from '@mui/icons-material';
 import { alpha } from '@mui/material/styles';
 
@@ -193,13 +205,29 @@ const AI_QUICK_ACTIONS = [
     color: '#f57c00',
     time: 'Real-time',
   },
+  {
+    icon: <ImportIcon />,
+    label: 'Smart CSV Import',
+    example: '"Import real estate listings CSV — auto-detect property fields, MLS numbers, and agent columns"',
+    color: '#6d4c41',
+    time: '~10 sec',
+  },
+  {
+    icon: <CasesIcon />,
+    label: 'Case Auto-Routing',
+    example: '"Route support tickets to agents by priority and auto-escalate unresolved cases after 4 hours"',
+    color: '#0097a7',
+    time: '~5 sec',
+  },
 ];
 
 /* ─── Platform Stats ────────────────────────────────────────────────────── */
 const STATS = [
-  { value: '10+', label: 'Microservices', icon: <StorageIcon /> },
-  { value: '60s', label: 'Zero-Config Setup', icon: <SpeedIcon /> },
-  { value: '12+', label: 'AI Actions', icon: <SmartToyIcon /> },
+  { value: '14', label: 'Microservices', icon: <StorageIcon /> },
+  { value: '25+', label: 'Platform Modules', icon: <DashboardIcon /> },
+  { value: '60s', label: 'AI Zero-Config', icon: <SpeedIcon /> },
+  { value: '6', label: 'Industry Templates', icon: <LanguageIcon /> },
+  { value: '20+', label: 'AI Actions', icon: <SmartToyIcon /> },
   { value: '99.9%', label: 'Uptime SLA', icon: <TimelineIcon /> },
 ];
 
@@ -207,68 +235,124 @@ const STATS = [
 const FEATURES = [
   {
     icon: <ConfigIcon sx={{ fontSize: 32 }} />,
-    title: 'AI Config',
+    title: 'AI Config Engine',
     desc: 'Describe needs in plain English — AI builds objects, fields, workflows, and dashboards automatically.',
     color: '#1976d2',
   },
   {
     icon: <AiIcon sx={{ fontSize: 32 }} />,
-    title: 'AI Insights',
-    desc: 'Lead scoring, deal predictions, churn alerts, and next-best-action recommendations powered by GPT-4o.',
+    title: 'AI Insights & Predictions',
+    desc: 'Lead scoring, deal predictions, churn alerts, revenue forecasts, and next-best-action recommendations powered by GPT-4o.',
     color: '#7b1fa2',
   },
   {
-    icon: <DashboardIcon sx={{ fontSize: 32 }} />,
-    title: 'Dashboards',
-    desc: 'Track revenue, pipeline, and team performance with real-time visual dashboards.',
-    color: '#2e7d32',
-  },
-  {
-    icon: <WorkflowIcon sx={{ fontSize: 32 }} />,
-    title: 'Automation',
-    desc: 'Automate lead assignment, emails, tasks, and stage transitions with smart workflows.',
-    color: '#ed6c02',
-  },
-  {
-    icon: <ObjectIcon sx={{ fontSize: 32 }} />,
-    title: 'Custom Objects',
-    desc: 'Build any data model — patients, properties, students. Text, number, date, dropdown fields.',
-    color: '#0288d1',
-  },
-  {
     icon: <PeopleIcon sx={{ fontSize: 32 }} />,
-    title: 'Contact Mgmt',
-    desc: 'Leads, accounts, contacts, opportunities — 360° relationship views in one place.',
+    title: 'Lead & Contact Management',
+    desc: 'Full lifecycle from lead capture to conversion. Accounts, contacts, opportunities — 360° relationship views.',
     color: '#00796b',
   },
   {
+    icon: <KanbanIcon sx={{ fontSize: 32 }} />,
+    title: 'Pipeline & Kanban Boards',
+    desc: 'Visual drag-and-drop deal pipeline with customizable stages, weighted forecasting, and conversion analytics.',
+    color: '#1565c0',
+  },
+  {
+    icon: <DashboardIcon sx={{ fontSize: 32 }} />,
+    title: 'Real-Time Dashboards',
+    desc: 'KPI cards, revenue charts, pipeline analytics, team leaderboards, and sales velocity tracking.',
+    color: '#2e7d32',
+  },
+  {
+    icon: <ReportsIcon sx={{ fontSize: 32 }} />,
+    title: 'Reports & Analytics',
+    desc: 'Custom report builder with conversion funnels, revenue attribution, quota tracking, and data health monitoring.',
+    color: '#4527a0',
+  },
+  {
+    icon: <WorkflowIcon sx={{ fontSize: 32 }} />,
+    title: 'Workflow Automation',
+    desc: 'Build trigger-condition-action rules. Automate lead assignment, emails, tasks, escalations, and stage transitions.',
+    color: '#ed6c02',
+  },
+  {
+    icon: <BoltIcon sx={{ fontSize: 32 }} />,
+    title: 'Smart Automation (AI)',
+    desc: 'AI detects patterns and suggests automations — follow-up reminders, lead routing, email sequences, and SLA alerts.',
+    color: '#e65100',
+  },
+  {
     icon: <EmailIcon sx={{ fontSize: 32 }} />,
-    title: 'Email Tracking',
-    desc: 'Send emails, track opens/clicks, use templates, see full history on every record.',
+    title: 'Email & Communications',
+    desc: 'Send emails, track opens/clicks, use templates, SMS notifications, and in-app messaging with full history.',
     color: '#c62828',
   },
   {
+    icon: <CasesIcon sx={{ fontSize: 32 }} />,
+    title: 'Case Management',
+    desc: 'Support ticket system with priority levels, SLA tracking, auto-escalation rules, and resolution workflows.',
+    color: '#0097a7',
+  },
+  {
+    icon: <CampaignIcon sx={{ fontSize: 32 }} />,
+    title: 'Campaign Management',
+    desc: 'Create and manage marketing campaigns, track ROI, measure engagement, and link campaigns to opportunities.',
+    color: '#d32f2f',
+  },
+  {
+    icon: <TaskIcon sx={{ fontSize: 32 }} />,
+    title: 'Activities & Tasks',
+    desc: 'Log calls, meetings, tasks, and notes. Automatic reminders, overdue alerts, and activity timeline per record.',
+    color: '#558b2f',
+  },
+  {
+    icon: <CollabIcon sx={{ fontSize: 32 }} />,
+    title: 'Team Collaboration',
+    desc: '@mentions, deal comments, shared notes, team feeds, and real-time collaboration on opportunities.',
+    color: '#00838f',
+  },
+  {
+    icon: <ObjectIcon sx={{ fontSize: 32 }} />,
+    title: 'Custom Objects & Fields',
+    desc: 'Build any data model — patients, properties, students. Text, number, date, currency, and dropdown field types.',
+    color: '#0288d1',
+  },
+  {
+    icon: <ImportIcon sx={{ fontSize: 32 }} />,
+    title: 'CSV Import with AI Detection',
+    desc: 'Upload CSVs and AI auto-maps columns to CRM fields. Industry-specific field detection for 6+ verticals.',
+    color: '#6d4c41',
+  },
+  {
     icon: <SecurityIcon sx={{ fontSize: 32 }} />,
-    title: 'Security',
-    desc: 'Role-based access, multi-tenancy, JWT auth, audit logging, and data isolation.',
+    title: 'Security & Multi-Tenancy',
+    desc: 'Role-based access, tenant isolation, JWT auth, MFA, audit logging, and data encryption.',
     color: '#37474f',
   },
   {
+    icon: <DevIcon sx={{ fontSize: 32 }} />,
+    title: 'Developer Portal & API',
+    desc: 'Full REST API, webhook management, API key generation, and developer documentation for custom integrations.',
+    color: '#263238',
+  },
+  {
     icon: <IntegrationIcon sx={{ fontSize: 32 }} />,
-    title: 'Integrations',
-    desc: 'Connect Zapier, Slack, email providers, and build custom integrations via REST API.',
+    title: 'Integrations & Webhooks',
+    desc: 'Connect Zapier, Slack, email providers, web forms, and build custom integrations via REST API and webhooks.',
     color: '#6a1b9a',
   },
 ];
 
 /* ─── Use Cases ─────────────────────────────────────────────────────────── */
 const USE_CASES = [
-  { industry: 'Real Estate', example: '"Create a Properties object with address, price, bedrooms, status, and listing agent fields"' },
-  { industry: 'Healthcare', example: '"Build a Patients object with date of birth, insurance provider, diagnosis, and primary doctor"' },
-  { industry: 'Education', example: '"Set up a Students object with enrollment date, GPA, program, advisor, and graduation status"' },
-  { industry: 'SaaS', example: '"Create a Subscriptions object with plan tier, MRR, renewal date, and churn risk score"' },
-  { industry: 'Professional Services', example: '"Build a Projects object with budget, hours tracked, status, client, and deadline"' },
-  { industry: 'Retail / E-Commerce', example: '"Create an Orders object with order total, shipping status, customer, and return flag"' },
+  { industry: 'Real Estate', example: '"Create a Properties object with address, price, bedrooms, status, and listing agent fields"', features: 'MLS import, showing scheduler, agent commission tracking' },
+  { industry: 'Healthcare', example: '"Build a Patients object with date of birth, insurance provider, diagnosis, and primary doctor"', features: 'Appointment workflows, HIPAA-ready fields, referral tracking' },
+  { industry: 'Education', example: '"Set up a Students object with enrollment date, GPA, program, advisor, and graduation status"', features: 'Enrollment pipeline, advisor assignment, graduation tracking' },
+  { industry: 'Finance', example: '"Create a Portfolio object with account value, risk level, investment type, and advisor assignment"', features: 'AUM tracking, compliance fields, client risk profiling' },
+  { industry: 'Technology / SaaS', example: '"Create a Subscriptions object with plan tier, MRR, renewal date, and churn risk score"', features: 'MRR dashboards, churn prediction, renewal automation' },
+  { industry: 'Manufacturing', example: '"Build a Purchase Orders object with supplier, quantity, unit cost, delivery date, and QC status"', features: 'Supplier management, QC workflows, delivery tracking' },
+  { industry: 'Professional Services', example: '"Build a Projects object with budget, hours tracked, status, client, and deadline"', features: 'Time tracking, milestone billing, resource allocation' },
+  { industry: 'Retail / E-Commerce', example: '"Create an Orders object with order total, shipping status, customer, and return flag"', features: 'Order pipeline, customer segmentation, return workflows' },
 ];
 
 /* ─── Testimonials ──────────────────────────────────────────────────────── */
@@ -282,7 +366,7 @@ const TESTIMONIALS = [
   {
     name: 'James Rodriguez',
     role: 'Broker, Skyline Realty',
-    text: 'The free plan was perfect to start. Once we saw the AI insights predicting which deals would close, upgrading was a no-brainer.',
+    text: 'The CSV import detected our MLS columns automatically. Combined with AI insights predicting which deals would close, upgrading was a no-brainer.',
     avatar: 'JR',
   },
   {
@@ -291,6 +375,24 @@ const TESTIMONIALS = [
     text: 'I told the AI "build me a patient management system" and it created everything — objects, fields, workflows — in under a minute.',
     avatar: 'PP',
   },
+  {
+    name: 'Michael Chen',
+    role: 'CTO, DataStream SaaS',
+    text: 'The developer portal and REST API made integrating with our product seamless. Webhook events trigger our billing system automatically.',
+    avatar: 'MC',
+  },
+  {
+    name: 'Lisa Thompson',
+    role: 'Support Lead, CloudServe',
+    text: 'Case management with auto-escalation cut our response times by 40%. The AI even suggests which tickets need immediate attention.',
+    avatar: 'LT',
+  },
+  {
+    name: 'Raj Patel',
+    role: 'Director, EduPath Academy',
+    text: 'We imported 5,000 student records via CSV and the AI mapped every column perfectly. The enrollment pipeline view is exactly what we needed.',
+    avatar: 'RP',
+  },
 ];
 
 /* ─── FAQ ───────────────────────────────────────────────────────────────── */
@@ -298,9 +400,13 @@ const FAQ = [
   { q: 'Do I need a credit card to start?', a: 'No. The Free plan is completely free forever. Paid plans include a 14-day free trial — no credit card required.' },
   { q: 'Can I upgrade or downgrade anytime?', a: 'Yes! Changes take effect immediately. Your data is never deleted when switching plans.' },
   { q: 'How does the AI Config work?', a: 'Just type what you need in plain English. For example: "Create a Projects object with budget, status, and deadline fields". The AI parses your request and builds everything automatically.' },
-  { q: 'Is my data secure?', a: 'Absolutely. We use JWT authentication, role-based access control, full data isolation per tenant, and encrypted communications.' },
-  { q: 'Can I use it for my specific industry?', a: 'Yes! The platform is industry-agnostic. Real estate, healthcare, education, SaaS, retail — just tell the AI your needs and it adapts.' },
+  { q: 'Is my data secure?', a: 'Absolutely. We use JWT authentication, role-based access control, MFA, full data isolation per tenant, audit logging, and encrypted communications.' },
+  { q: 'Can I use it for my specific industry?', a: 'Yes! We have built-in templates for Real Estate, Healthcare, Finance, Technology, Education, and Manufacturing. Or just tell the AI your needs and it adapts.' },
   { q: 'What happens if I exceed my plan limits?', a: 'You\'ll see a friendly upgrade prompt. Existing data is never deleted or restricted — you just can\'t create new items beyond the limit until you upgrade.' },
+  { q: 'Can I import data from spreadsheets?', a: 'Yes! Upload any CSV file and our AI automatically detects columns, maps them to CRM fields, and shows a preview before importing. It even recognizes industry-specific fields.' },
+  { q: 'Do you have an API for custom integrations?', a: 'Yes. Full REST API with API key management, webhook events, and a Developer Portal with documentation. Connect to Zapier, Slack, or build your own integrations.' },
+  { q: 'How does case management work?', a: 'Create support tickets with priority levels. Set SLA rules with auto-escalation. The AI routes cases to the right agents and flags tickets nearing their deadline.' },
+  { q: 'Is there team collaboration built in?', a: 'Yes! @mention teammates on deals, share notes, add comments to any record, and use team activity feeds. Everyone stays aligned in real time.' },
 ];
 
 /* ═══════════════════════════════════════════════════════════════════════════ */
@@ -318,6 +424,7 @@ const LandingPage: React.FC = () => {
 
   const navLinks = [
     { label: 'Features', id: 'features' },
+    { label: 'AI', id: 'ai-actions' },
     { label: 'Use Cases', id: 'usecases' },
     { label: 'Pricing', id: 'pricing' },
     { label: 'FAQ', id: 'faq' },
@@ -469,7 +576,7 @@ const LandingPage: React.FC = () => {
         <Container maxWidth="md">
           <Grid container spacing={3} justifyContent="center">
             {STATS.map((s, i) => (
-              <Grid item xs={6} sm={3} key={i}>
+              <Grid item xs={4} sm={2} key={i}>
                 <Box sx={{ textAlign: 'center', color: '#fff' }}>
                   <Box sx={{ color: '#90caf9', mb: 0.5 }}>{s.icon}</Box>
                   <Typography variant="h4" fontWeight={800}>{s.value}</Typography>
@@ -666,12 +773,15 @@ const LandingPage: React.FC = () => {
           <Typography variant="h4" fontWeight={800} textAlign="center" gutterBottom>
             Everything You Need to Grow
           </Typography>
-          <Typography variant="body1" color="text.secondary" textAlign="center" sx={{ mb: 4, maxWidth: 500, mx: 'auto' }}>
-            A full-featured, AI-powered CRM for any industry
+          <Typography variant="body1" color="text.secondary" textAlign="center" sx={{ mb: 1 }}>
+            18 feature modules across sales, marketing, support, and operations
+          </Typography>
+          <Typography variant="body2" color="text.secondary" textAlign="center" sx={{ mb: 4, maxWidth: 600, mx: 'auto' }}>
+            A full-featured, AI-powered CRM platform built on 14 microservices — every module works together seamlessly
           </Typography>
           <Grid container spacing={2}>
             {FEATURES.map((f, i) => (
-              <Grid item xs={6} sm={4} md={4} lg={Math.ceil(9 / FEATURES.length) > 1 ? 4 : 4} key={i}>
+              <Grid item xs={6} sm={4} md={3} key={i}>
                 <Card
                   elevation={0}
                   sx={{
@@ -865,6 +975,76 @@ const LandingPage: React.FC = () => {
         </Container>
       </Box>
 
+      {/* ── Complete Platform Architecture ─────────────────────────── */}
+      <Box sx={{ py: 6, bgcolor: '#fff' }}>
+        <Container maxWidth="lg">
+          <Box sx={{ textAlign: 'center', mb: 4 }}>
+            <Chip icon={<StorageIcon />} label="ENTERPRISE ARCHITECTURE" sx={{ bgcolor: '#e8eaf6', color: '#3949ab', fontWeight: 700, mb: 2 }} />
+            <Typography variant="h4" fontWeight={800}>
+              14 Microservices. One Platform.
+            </Typography>
+            <Typography variant="body1" color="text.secondary" sx={{ mt: 1, maxWidth: 600, mx: 'auto' }}>
+              Built on a modern distributed architecture — each service scales independently for enterprise-grade reliability
+            </Typography>
+          </Box>
+          <Grid container spacing={1.5}>
+            {[
+              { name: 'Auth Service', desc: 'Login, registration, JWT, MFA, roles', icon: <SecurityIcon />, color: '#1565c0' },
+              { name: 'Lead Service', desc: 'Lead capture, scoring, conversion', icon: <GrowthIcon />, color: '#2e7d32' },
+              { name: 'Account Service', desc: 'Company records, hierarchies', icon: <TeamsIcon />, color: '#00796b' },
+              { name: 'Contact Service', desc: '360° contact profiles', icon: <PeopleIcon />, color: '#0288d1' },
+              { name: 'Opportunity Service', desc: 'Deal tracking, pipeline, forecasting', icon: <KanbanIcon />, color: '#7b1fa2' },
+              { name: 'Activity Service', desc: 'Tasks, calls, meetings, notes', icon: <TaskIcon />, color: '#558b2f' },
+              { name: 'Notification Service', desc: 'Email, SMS, in-app alerts', icon: <NotifIcon />, color: '#e65100' },
+              { name: 'Workflow Service', desc: 'Automation rules & triggers', icon: <WorkflowIcon />, color: '#ed6c02' },
+              { name: 'AI Service', desc: 'Config engine, insights, predictions', icon: <AiIcon />, color: '#6a1b9a' },
+              { name: 'Email Service', desc: 'Templates, tracking, campaigns', icon: <EmailIcon />, color: '#c62828' },
+              { name: 'Integration Service', desc: 'REST API, webhooks, web forms', icon: <ApiIcon />, color: '#263238' },
+              { name: 'Case Service', desc: 'Tickets, SLA, escalation', icon: <CasesIcon />, color: '#0097a7' },
+              { name: 'Campaign Service', desc: 'Marketing campaigns & ROI', icon: <CampaignIcon />, color: '#d32f2f' },
+              { name: 'AI Agent', desc: 'Conversational AI assistant', icon: <SmartToyIcon />, color: '#4527a0' },
+            ].map((svc, i) => (
+              <Grid item xs={6} sm={4} md={3} lg={12/7} key={i}>
+                <Box
+                  sx={{
+                    p: 1.5,
+                    border: '1px solid',
+                    borderColor: alpha(svc.color, 0.2),
+                    borderRadius: 2,
+                    textAlign: 'center',
+                    transition: 'all 0.2s',
+                    '&:hover': { borderColor: svc.color, bgcolor: alpha(svc.color, 0.04), transform: 'translateY(-2px)' },
+                  }}
+                >
+                  <Avatar sx={{ bgcolor: alpha(svc.color, 0.1), color: svc.color, width: 36, height: 36, mx: 'auto', mb: 0.5 }}>
+                    {svc.icon}
+                  </Avatar>
+                  <Typography variant="caption" fontWeight={700} display="block" sx={{ fontSize: '0.7rem' }}>
+                    {svc.name}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.6rem', lineHeight: 1.3 }}>
+                    {svc.desc}
+                  </Typography>
+                </Box>
+              </Grid>
+            ))}
+          </Grid>
+          <Box sx={{ textAlign: 'center', mt: 3 }}>
+            <Stack direction="row" spacing={3} justifyContent="center" flexWrap="wrap" useFlexGap>
+              {[
+                'PostgreSQL Databases',
+                'Redis Caching',
+                'Apache Kafka Events',
+                'Docker Orchestration',
+                'Nginx Load Balancing',
+              ].map((tech) => (
+                <Chip key={tech} label={tech} variant="outlined" size="small" sx={{ fontWeight: 600, fontSize: '0.75rem' }} />
+              ))}
+            </Stack>
+          </Box>
+        </Container>
+      </Box>
+
       {/* ── Use Cases Section ──────────────────────────────────────── */}
       <Box id="usecases" sx={{ py: 8, bgcolor: '#f5f5f5' }}>
         <Container maxWidth="lg">
@@ -876,16 +1056,19 @@ const LandingPage: React.FC = () => {
           </Typography>
           <Grid container spacing={3}>
             {USE_CASES.map((uc, i) => (
-              <Grid item xs={12} sm={6} md={4} key={i}>
-                <Card elevation={0} sx={{ height: '100%', p: 3, border: '1px solid #e0e0e0', borderRadius: 3, bgcolor: '#fff' }}>
-                  <Typography variant="h6" fontWeight={700} gutterBottom color="primary">
+              <Grid item xs={12} sm={6} md={3} key={i}>
+                <Card elevation={0} sx={{ height: '100%', p: 2.5, border: '1px solid #e0e0e0', borderRadius: 3, bgcolor: '#fff' }}>
+                  <Typography variant="subtitle1" fontWeight={700} gutterBottom color="primary">
                     {uc.industry}
                   </Typography>
                   <Typography
                     variant="body2"
-                    sx={{ fontStyle: 'italic', color: 'text.secondary', bgcolor: '#f0f7ff', p: 1.5, borderRadius: 2, lineHeight: 1.6 }}
+                    sx={{ fontStyle: 'italic', color: 'text.secondary', bgcolor: '#f0f7ff', p: 1.5, borderRadius: 2, lineHeight: 1.6, fontSize: '0.78rem', mb: 1.5 }}
                   >
                     {uc.example}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                    <strong>Includes:</strong> {uc.features}
                   </Typography>
                 </Card>
               </Grid>
