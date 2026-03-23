@@ -709,4 +709,72 @@ public class ContactService {
         attachment.setDeleted(true);
         attachmentRepository.save(attachment);
     }
+
+    // ═══════════════════════════════════════════════════════════
+    // Data Health Scan
+    // ═══════════════════════════════════════════════════════════
+    @Transactional(readOnly = true)
+    public DataHealthResponse getDataHealth(int staleDays) {
+        String tenantId = TenantContext.getTenantId();
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(staleDays);
+
+        long total = contactRepository.countByTenantIdAndDeletedFalse(tenantId);
+        long stale = contactRepository.countStaleContacts(tenantId, cutoff);
+        long missingEmail = contactRepository.countByTenantIdAndDeletedFalseAndEmailIsNull(tenantId);
+        long missingPhone = contactRepository.countByTenantIdAndDeletedFalseAndPhoneIsNullAndMobilePhoneIsNull(tenantId);
+        long duplicateGroups = detectDuplicates().size();
+
+        // Fetch top 50 stale records
+        var staleRecords = contactRepository.findStaleContacts(tenantId, cutoff,
+                        org.springframework.data.domain.PageRequest.of(0, 50))
+                .getContent().stream()
+                .map(c -> DataHealthResponse.StaleRecord.builder()
+                        .id(c.getId().toString())
+                        .firstName(c.getFirstName())
+                        .lastName(c.getLastName())
+                        .email(c.getEmail())
+                        .phone(c.getPhone() != null ? c.getPhone() : c.getMobilePhone())
+                        .updatedAt(c.getUpdatedAt() != null ? c.getUpdatedAt().toString() : c.getCreatedAt().toString())
+                        .daysSinceUpdate(c.getUpdatedAt() != null
+                                ? (int) java.time.temporal.ChronoUnit.DAYS.between(c.getUpdatedAt(), LocalDateTime.now())
+                                : (int) java.time.temporal.ChronoUnit.DAYS.between(c.getCreatedAt(), LocalDateTime.now()))
+                        .build())
+                .toList();
+
+        // Build issue breakdown
+        var issues = new java.util.ArrayList<DataHealthResponse.IssueBreakdown>();
+        if (stale > 0) issues.add(DataHealthResponse.IssueBreakdown.builder()
+                .category("Stale Records").description("Contacts not updated in " + staleDays + "+ days")
+                .count(stale).severity(stale > total / 2 ? "HIGH" : "MEDIUM").build());
+        if (missingEmail > 0) issues.add(DataHealthResponse.IssueBreakdown.builder()
+                .category("Missing Email").description("Contacts without email addresses")
+                .count(missingEmail).severity(missingEmail > total / 4 ? "HIGH" : "LOW").build());
+        if (missingPhone > 0) issues.add(DataHealthResponse.IssueBreakdown.builder()
+                .category("Missing Phone").description("Contacts without any phone number")
+                .count(missingPhone).severity("LOW").build());
+        if (duplicateGroups > 0) issues.add(DataHealthResponse.IssueBreakdown.builder()
+                .category("Duplicates").description("Duplicate contact groups detected")
+                .count(duplicateGroups).severity(duplicateGroups > 5 ? "HIGH" : "MEDIUM").build());
+
+        // Score: 100 minus deductions
+        int score = 100;
+        if (total > 0) {
+            score -= (int) (stale * 30.0 / total);
+            score -= (int) (missingEmail * 20.0 / total);
+            score -= (int) (missingPhone * 10.0 / total);
+            score -= (int) (duplicateGroups * 5);
+        }
+        score = Math.max(0, Math.min(100, score));
+
+        return DataHealthResponse.builder()
+                .totalContacts(total)
+                .staleContacts(stale)
+                .missingEmail(missingEmail)
+                .missingPhone(missingPhone)
+                .duplicateGroups(duplicateGroups)
+                .healthScore(score)
+                .staleRecords(staleRecords)
+                .issues(issues)
+                .build();
+    }
 }

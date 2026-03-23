@@ -42,6 +42,7 @@ import {
   DataObject as ObjectManagerIcon,
   Payments as PricingIcon,
   Screenshot as ScreenCaptureIcon,
+  HealthAndSafety as DataHealthIcon,
 } from '@mui/icons-material';
 
 export const DRAWER_WIDTH = 260;
@@ -75,6 +76,7 @@ const menuItems = [
   { label: 'Object Manager', path: '/object-manager', icon: <ObjectManagerIcon /> },
   { label: 'Pricing & Plans', path: '/pricing', icon: <PricingIcon /> },
   { label: 'Screen Capture', path: '/screen-capture', icon: <ScreenCaptureIcon /> },
+  { label: 'Data Health', path: '/data-health', icon: <DataHealthIcon /> },
   { label: 'Settings', path: '/settings', icon: <SettingsIcon /> },
 ];
 

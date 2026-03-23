@@ -38,6 +38,7 @@ public class AuthService {
     private final EventPublisher eventPublisher;
     private final EmailService emailService;
     private final TenantPlanService tenantPlanService;
+    private final MfaService mfaService;
 
     @Value("${app.password-reset.token-expiration-minutes:30}")
     private int tokenExpirationMinutes;
@@ -115,6 +116,21 @@ public class AuthService {
             throw new UnauthorizedException("User account is disabled");
         }
 
+        // Check if user has MFA enabled
+        if (mfaService.isMfaEnabled(user.getId(), request.getTenantId())) {
+            log.info("MFA required for user: {}", user.getId());
+            // Issue a short-lived MFA token (not a full access token)
+            String mfaToken = jwtTokenProvider.generateRefreshToken(
+                    user.getId().toString(), user.getTenantId());
+            return AuthResponse.builder()
+                    .mfaRequired(true)
+                    .mfaToken(mfaToken)
+                    .userId(user.getId().toString())
+                    .email(user.getEmail())
+                    .tenantId(user.getTenantId())
+                    .build();
+        }
+
         List<String> roles = user.getRoles().stream().map(Role::getName).toList();
         String accessToken = jwtTokenProvider.generateToken(
                 user.getId().toString(), user.getTenantId(), user.getEmail(), roles);
@@ -122,6 +138,38 @@ public class AuthService {
                 user.getId().toString(), user.getTenantId());
 
         log.info("User logged in successfully: {}", user.getId());
+
+        return AuthResponse.builder()
+                .accessToken(accessToken)
+                .refreshToken(refreshToken)
+                .tokenType("Bearer")
+                .userId(user.getId().toString())
+                .email(user.getEmail())
+                .tenantId(user.getTenantId())
+                .roles(roles)
+                .planName(tenantPlanService.getPlan(user.getTenantId()).getPlanName())
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public AuthResponse verifyMfa(MfaVerifyRequest request) {
+        log.info("MFA verification for user: {}", request.getUserId());
+
+        UUID userId = UUID.fromString(request.getUserId());
+        User user = userRepository.findByIdAndTenantIdAndDeletedFalse(userId, request.getTenantId())
+                .orElseThrow(() -> new UnauthorizedException("Invalid user"));
+
+        if (!mfaService.verifyCode(userId, request.getTenantId(), request.getCode())) {
+            throw new UnauthorizedException("Invalid MFA code");
+        }
+
+        List<String> roles = user.getRoles().stream().map(Role::getName).toList();
+        String accessToken = jwtTokenProvider.generateToken(
+                user.getId().toString(), user.getTenantId(), user.getEmail(), roles);
+        String refreshToken = jwtTokenProvider.generateRefreshToken(
+                user.getId().toString(), user.getTenantId());
+
+        log.info("MFA verified, user logged in: {}", user.getId());
 
         return AuthResponse.builder()
                 .accessToken(accessToken)

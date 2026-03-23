@@ -78,4 +78,18 @@ public interface ContactRepository extends JpaRepository<Contact, UUID> {
 
     @Query("SELECT c.department, COUNT(c) FROM Contact c WHERE c.tenantId = :tenantId AND c.deleted = false AND c.department IS NOT NULL GROUP BY c.department")
     List<Object[]> countByDepartment(@Param("tenantId") String tenantId);
+
+    // Data Health: Stale records (not updated within N days)
+    @Query("SELECT c FROM Contact c WHERE c.tenantId = :tenantId AND c.deleted = false AND c.updatedAt < :cutoff ORDER BY c.updatedAt ASC")
+    Page<Contact> findStaleContacts(@Param("tenantId") String tenantId, @Param("cutoff") java.time.LocalDateTime cutoff, Pageable pageable);
+
+    @Query("SELECT COUNT(c) FROM Contact c WHERE c.tenantId = :tenantId AND c.deleted = false AND c.updatedAt < :cutoff")
+    long countStaleContacts(@Param("tenantId") String tenantId, @Param("cutoff") java.time.LocalDateTime cutoff);
+
+    // Data Health: Missing fields
+    long countByTenantIdAndDeletedFalseAndEmailIsNull(String tenantId);
+
+    long countByTenantIdAndDeletedFalseAndPhoneIsNull(String tenantId);
+
+    long countByTenantIdAndDeletedFalseAndPhoneIsNullAndMobilePhoneIsNull(String tenantId);
 }

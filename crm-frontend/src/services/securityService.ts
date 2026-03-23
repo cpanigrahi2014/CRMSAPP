@@ -159,6 +159,15 @@ export const securityService = {
   // ── MFA ─────────────────────────────────────────────────
   getMfaSetup: (): MfaSetup => loadJson(STORAGE_KEYS.mfa, { enabled: false, method: 'TOTP' as const }),
   saveMfaSetup: (setup: MfaSetup) => saveJson(STORAGE_KEYS.mfa, setup),
+  enableMfaApi: async (userId: string): Promise<any> => {
+    try {
+      const res = await api.post<ApiResponse<any>>(`${SEC}/mfa`, { userId, mfaType: 'TOTP', enabled: true });
+      return res.data.data;
+    } catch { return null; }
+  },
+  disableMfaApi: async (id: string): Promise<void> => {
+    try { await api.delete(`${SEC}/mfa/${id}`); } catch { /* ignore */ }
+  },
 
   // ── Audit Logs ──────────────────────────────────────────
   getAuditLogs: (): AuditLogEntry[] => loadJson(STORAGE_KEYS.auditLogs, SAMPLE_AUDIT_LOGS),

@@ -11,6 +11,8 @@ interface AuthState {
   loading: boolean;
   error: string | null;
   isAuthenticated: boolean;
+  mfaRequired: boolean;
+  mfaPending: { userId: string; email: string; tenantId: string; mfaToken: string } | null;
 }
 
 const initialState: AuthState = {
@@ -19,16 +21,32 @@ const initialState: AuthState = {
   loading: false,
   error: null,
   isAuthenticated: !!localStorage.getItem('accessToken'),
+  mfaRequired: false,
+  mfaPending: null,
 };
 
 export const login = createAsyncThunk('auth/login', async (data: LoginRequest, { rejectWithValue }) => {
   try {
     const res = await authService.login(data);
+    if (res.data.mfaRequired) {
+      return { mfaRequired: true, userId: res.data.userId, email: res.data.email, tenantId: res.data.tenantId, mfaToken: res.data.mfaToken };
+    }
     localStorage.setItem('accessToken', res.data.accessToken);
     localStorage.setItem('refreshToken', res.data.refreshToken);
     return res.data;
   } catch (err: any) {
     return rejectWithValue(err.response?.data?.message || 'Login failed');
+  }
+});
+
+export const verifyMfa = createAsyncThunk('auth/verifyMfa', async (data: { userId: string; code: string; tenantId: string; mfaToken: string }, { rejectWithValue }) => {
+  try {
+    const res = await authService.verifyMfa(data);
+    localStorage.setItem('accessToken', res.data.accessToken);
+    localStorage.setItem('refreshToken', res.data.refreshToken);
+    return res.data;
+  } catch (err: any) {
+    return rejectWithValue(err.response?.data?.message || 'MFA verification failed');
   }
 });
 
@@ -67,6 +85,10 @@ const authSlice = createSlice({
     clearError(state) {
       state.error = null;
     },
+    clearMfa(state) {
+      state.mfaRequired = false;
+      state.mfaPending = null;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -74,13 +96,41 @@ const authSlice = createSlice({
       .addCase(login.pending, (state) => { state.loading = true; state.error = null; })
       .addCase(login.fulfilled, (state, action: PayloadAction<any>) => {
         state.loading = false;
+        if (action.payload.mfaRequired) {
+          state.mfaRequired = true;
+          state.mfaPending = {
+            userId: action.payload.userId,
+            email: action.payload.email,
+            tenantId: action.payload.tenantId,
+            mfaToken: action.payload.mfaToken,
+          };
+        } else {
+          state.token = action.payload.accessToken;
+          state.isAuthenticated = true;
+          state.mfaRequired = false;
+          state.mfaPending = null;
+          if (action.payload.planName) {
+            localStorage.setItem('planName', action.payload.planName);
+          }
+        }
+      })
+      .addCase(login.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      })
+      // Verify MFA
+      .addCase(verifyMfa.pending, (state) => { state.loading = true; state.error = null; })
+      .addCase(verifyMfa.fulfilled, (state, action: PayloadAction<any>) => {
+        state.loading = false;
         state.token = action.payload.accessToken;
         state.isAuthenticated = true;
+        state.mfaRequired = false;
+        state.mfaPending = null;
         if (action.payload.planName) {
           localStorage.setItem('planName', action.payload.planName);
         }
       })
-      .addCase(login.rejected, (state, action) => {
+      .addCase(verifyMfa.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload as string;
       })
@@ -105,5 +155,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { logout, clearError } = authSlice.actions;
+export const { logout, clearError, clearMfa } = authSlice.actions;
 export default authSlice.reducer;

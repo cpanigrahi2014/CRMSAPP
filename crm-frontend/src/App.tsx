@@ -45,6 +45,7 @@ import DeveloperPortalPage from './pages/DeveloperPortalPage';
 import ObjectManagerPage from './pages/ObjectManagerPage';
 import PricingPage from './pages/PricingPage';
 import ScreenCapturePage from './pages/ScreenCapturePage';
+import DataHealthPage from './pages/DataHealthPage';
 import LandingPage from './pages/LandingPage';
 
 /* ---- Protected Route wrapper ---- */
@@ -116,6 +117,7 @@ const App: React.FC = () => {
         <Route path="object-manager" element={<ObjectManagerPage />} />
         <Route path="pricing" element={<PricingPage />} />
         <Route path="screen-capture" element={<ScreenCapturePage />} />
+        <Route path="data-health" element={<DataHealthPage />} />
       </Route>
 
       {/* ---- Catch-all ---- */}

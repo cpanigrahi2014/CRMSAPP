@@ -8,6 +8,9 @@ export const authService = {
   login: (data: LoginRequest) =>
     api.post<ApiResponse<AuthResponse>>('/api/v1/auth/login', data).then((r) => r.data),
 
+  verifyMfa: (data: { userId: string; code: string; tenantId: string; mfaToken: string }) =>
+    api.post<ApiResponse<AuthResponse>>('/api/v1/auth/verify-mfa', data).then((r) => r.data),
+
   register: (data: RegisterRequest) =>
     api.post<ApiResponse<AuthResponse>>('/api/v1/auth/register', data).then((r) => r.data),
 

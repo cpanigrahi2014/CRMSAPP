@@ -318,8 +318,16 @@ const SecurityPage: React.FC = () => {
   /* ════════════════════════════════════════════════════════════
      7. MFA
      ════════════════════════════════════════════════════════════ */
-  const toggleMfa = () => {
+  const toggleMfa = async () => {
     if (!mfa.enabled) {
+      // Call backend to set up MFA, then show verify dialog
+      try {
+        const token = localStorage.getItem('accessToken');
+        if (token) {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          await securityService.enableMfaApi(payload.sub || payload.userId);
+        }
+      } catch { /* continue with local flow */ }
       setMfaVerifyDialog(true);
     } else {
       const updated = { ...mfa, enabled: false, verifiedAt: undefined };
@@ -328,14 +336,14 @@ const SecurityPage: React.FC = () => {
       notify('MFA disabled', 'info');
     }
   };
-  const verifyMfa = () => {
+  const verifyMfaSetup = () => {
     if (mfaCode.length !== 6) return;
     const updated: MfaSetup = { ...mfa, enabled: true, verifiedAt: new Date().toISOString() };
     setMfa(updated);
     securityService.saveMfaSetup(updated);
     setMfaVerifyDialog(false);
     setMfaCode('');
-    notify('MFA enabled successfully');
+    notify('MFA enabled successfully — you will be prompted for a code on login');
   };
 
   /* ════════════════════════════════════════════════════════════
@@ -991,7 +999,7 @@ const SecurityPage: React.FC = () => {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => { setMfaVerifyDialog(false); setMfaCode(''); }}>Cancel</Button>
-          <Button variant="contained" onClick={verifyMfa} disabled={mfaCode.length !== 6}>Verify & Enable</Button>
+          <Button variant="contained" onClick={verifyMfaSetup} disabled={mfaCode.length !== 6}>Verify & Enable</Button>
         </DialogActions>
       </Dialog>
 

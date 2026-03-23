@@ -91,6 +91,10 @@ export const contactService = {
   exportCsv: () =>
     api.get<string>('/api/v1/contacts/export', { responseType: 'text' as any }).then((r) => r.data),
 
+  // ── Data Health Scan ──
+  getDataHealth: (staleDays = 30) =>
+    api.get<ApiResponse<any>>('/api/v1/contacts/data-health', { params: { staleDays } }).then((r) => r.data),
+
   // ── Notes ──
   addNote: (contactId: string, content: string) =>
     api.post<ApiResponse<ContactNote>>(`/api/v1/contacts/${contactId}/notes`, { content }).then((r) => r.data),

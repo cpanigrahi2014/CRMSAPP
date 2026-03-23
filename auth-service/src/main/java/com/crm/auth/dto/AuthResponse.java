@@ -20,4 +20,6 @@ public class AuthResponse {
     private String tenantId;
     private List<String> roles;
     private String planName;
+    private boolean mfaRequired;
+    private String mfaToken;
 }

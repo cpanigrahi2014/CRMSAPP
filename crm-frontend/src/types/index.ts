@@ -23,6 +23,11 @@ export interface AuthResponse {
   refreshToken: string;
   tokenType: string;
   expiresIn: number;
+  mfaRequired?: boolean;
+  mfaToken?: string;
+  userId?: string;
+  email?: string;
+  tenantId?: string;
 }
 
 export interface UserProfile {

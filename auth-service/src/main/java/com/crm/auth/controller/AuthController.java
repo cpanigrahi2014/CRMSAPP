@@ -35,7 +35,14 @@ public class AuthController {
     @Operation(summary = "Authenticate user and get tokens")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
         AuthResponse response = authService.login(request);
-        return ResponseEntity.ok(ApiResponse.success(response, "Login successful"));
+        return ResponseEntity.ok(ApiResponse.success(response, response.isMfaRequired() ? "MFA required" : "Login successful"));
+    }
+
+    @PostMapping("/verify-mfa")
+    @Operation(summary = "Verify MFA code and complete login")
+    public ResponseEntity<ApiResponse<AuthResponse>> verifyMfa(@Valid @RequestBody MfaVerifyRequest request) {
+        AuthResponse response = authService.verifyMfa(request);
+        return ResponseEntity.ok(ApiResponse.success(response, "MFA verified successfully"));
     }
 
     @PostMapping("/users/{userId}/roles")
