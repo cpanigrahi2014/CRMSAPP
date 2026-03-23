@@ -167,21 +167,46 @@ function fallbackParseInstruction(instruction: string): Record<string, unknown> 
   // Detect custom object creation
   if (/create\s+(a\s+)?(custom\s+)?object/.test(lower)) {
     const objectName = instruction.match(/object\s+(?:called\s+|named\s+)?(\w+)/i)?.[1] ?? 'CustomObject';
-    const fieldPhrases = instruction.match(/fields?\s+(?:for\s+|:?\s*)(.+)/i)?.[1] ?? '';
-    const fieldNames = fieldPhrases.split(/,\s*|\s+and\s+/).map(f => f.trim()).filter(f => f.length > 0);
-    const fields = fieldNames.map(name => {
-      const lower = name.toLowerCase();
-      let fieldType = 'text';
-      if (/budget|amount|price|cost|revenue/.test(lower)) fieldType = 'currency';
-      else if (/date|start|end|due/.test(lower)) fieldType = 'date';
-      else if (/status|priority|type|category/.test(lower)) fieldType = 'picklist';
-      else if (/email/.test(lower)) fieldType = 'email';
-      else if (/phone/.test(lower)) fieldType = 'phone';
-      else if (/url|website|link/.test(lower)) fieldType = 'url';
-      else if (/number|count|quantity/.test(lower)) fieldType = 'number';
-      return { name: name.replace(/\s+/g, '_').toLowerCase(), type: fieldType, label: name };
+    const fieldPhrases = instruction.match(/fields?\s*(?::\s*|\s+for\s+|\s+)(.+)/i)?.[1] ?? '';
+    const rawFields = fieldPhrases.split(/,\s*|\s+and\s+/).map(f => f.trim()).filter(f => f.length > 0);
+
+    // Supported field types for explicit (type) annotation
+    const VALID_TYPES = new Set([
+      'text','textarea','number','currency','percent','date','datetime',
+      'boolean','email','phone','url','picklist','multi_picklist','lookup',
+      'formula','auto_number',
+    ]);
+
+    const fields = rawFields.map(raw => {
+      // Extract explicit type annotation in parentheses, e.g. "address (text)"
+      const typeMatch = raw.match(/^(.+?)\s*\((\w+)\)$/);
+      let fieldName = typeMatch ? typeMatch[1].trim() : raw.trim();
+      const explicitType = typeMatch ? typeMatch[2].toLowerCase() : null;
+
+      let fieldType: string;
+      if (explicitType && VALID_TYPES.has(explicitType)) {
+        fieldType = explicitType;
+      } else {
+        // Keyword-based type detection
+        const lf = fieldName.toLowerCase();
+        if (/budget|amount|price|cost|revenue/.test(lf)) fieldType = 'currency';
+        else if (/date|start|end|due/.test(lf)) fieldType = 'date';
+        else if (/status|priority|type|category/.test(lf)) fieldType = 'picklist';
+        else if (/email/.test(lf)) fieldType = 'email';
+        else if (/phone/.test(lf)) fieldType = 'phone';
+        else if (/url|website|link/.test(lf)) fieldType = 'url';
+        else if (/number|count|quantity|bedrooms|bathrooms|square/.test(lf)) fieldType = 'number';
+        else fieldType = 'text';
+      }
+
+      const label = fieldName.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      return {
+        name: fieldName.replace(/\s+/g, '_').toLowerCase(),
+        type: fieldType,
+        label,
+      };
     });
-    return { action: 'create_object', name: objectName, fields };
+    return { action: 'create_object', name: objectName, label: objectName, fields };
   }
 
   // Detect field creation

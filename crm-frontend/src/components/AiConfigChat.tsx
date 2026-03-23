@@ -65,7 +65,7 @@ const AiConfigChat: React.FC = () => {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, scrollToBottom]);
+  }, [messages, loading, scrollToBottom]);
 
   // ── Send Instruction ─────────────────────────────────────────────────────
 
